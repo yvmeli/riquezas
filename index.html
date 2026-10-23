@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Horizonte — Sketch de producto</title>
+    <style>
+        :root {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+            color: #eaf1ef;
+            background: #091512
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0
+        }
+
+        button,
+        input,
+        select {
+            font: inherit
+        }
+
+        button {
+            cursor: pointer
+        }
+
+        .shell {
+            max-width: 1250px;
+            margin: auto;
+            padding: 26px
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -1px
+        }
+
+        .brand span {
+            color: #85dfb1
+        }
+
+        .pill {
+            border: 1px solid #31564b;
+            border-radius: 30px;
+            padding: 8px 13px;
+            color: #a7c5ba;
+            font-size: 12px
+        }
+
+        .hero {
+            padding: 70px 0 44px;
+            display: grid;
+            grid-template-columns: 1.15fr .85fr;
+            gap: 30px;
+            align-items: center
+        }
+
+        .eyebrow {
+            color: #8fe3b7;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700
+        }
+
+        h1 {
+            font-size: clamp(40px, 5.5vw, 74px);
+            line-height: 1.04;
+            letter-spacing: -3px;
+            margin: 15px 0
+        }
+
+        h1 em {
+            font-style: normal;
+            color: #8fe3b7
+        }
+
+        p {
+            line-height: 1.65;
+            color: #a9c0b7
+        }
+
+        .lead {
+            font-size: 18px;
+            max-width: 660px
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 12px;
+            padding: 13px 18px;
+            background: #91e7b8;
+            color: #10261c;
+            font-weight: 750
+        }
+
+        .btn.secondary {
+            background: #1b3029;
+            color: #d6eee2;
+            border: 1px solid #35594a
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 24px
+        }
+
+        .panel {
+            background: #10231d;
+            border: 1px solid #274238;
+            border-radius: 20px;
+            padding: 23px
+        }
+
+        .glow {
+            background: radial-gradient(circle at 70% 20%, #245c44, #10231d 65%)
+        }
+
+        .small {
+            font-size: 12px;
+            color: #8ba99b
+        }
+
+        .big {
+            font-size: 34px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin: 8px 0
+        }
+
+        .progress {
+            height: 9px;
+            background: #29483b;
+            border-radius: 20px;
+            overflow: hidden
+        }
+
+        .progress i {
+            display: block;
+            height: 100%;
+            background: #92e6b9;
+            width: 34%;
+            border-radius: 20px
+        }
+
+        .statrow {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0
+        }
+
+        .stat {
+            padding: 14px;
+            background: #1a3329;
+            border-radius: 12px
+        }
+
+        .stat strong {
+            display: block;
+            margin-top: 7px;
+            font-size: 20px
+        }
+
+        .section {
+            padding: 36px 0
+        }
+
+        .section h2 {
+            font-size: clamp(25px, 3vw, 37px);
+            letter-spacing: -1px;
+            margin: 8px 0
+        }
+
+        .grid3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px
+        }
+
+        .motivation h3 {
+            margin: 10px 0 4px
+        }
+
+        .motivation .symbol {
+            font-size: 29px
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 22px 0
+        }
+
+        .tab {
+            border: 1px solid #36594b;
+            background: #142a22;
+            color: #b9d1c6;
+            padding: 11px 16px;
+            border-radius: 12px
+        }
+
+        .tab.active {
+            background: #8fe3b7;
+            color: #11271d;
+            font-weight: 750
+        }
+
+        .demo {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 16px
+        }
+
+        .side {
+            display: flex;
+            flex-direction: column;
+            gap: 8px
+        }
+
+        .navitem {
+            padding: 13px;
+            border-radius: 10px;
+            color: #a9c5b6
+        }
+
+        .navitem.active {
+            background: #274a39;
+            color: #d8f7e5
+        }
+
+        .view {
+            min-height: 340px
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px
+        }
+
+        .metric {
+            background: #1a3329;
+            padding: 17px;
+            border-radius: 13px
+        }
+
+        .metric b {
+            font-size: 23px;
+            display: block;
+            margin-top: 9px
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin: 20px 0
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            color: #a9c5b6;
+            font-size: 13px
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            background: #0d1e18;
+            border: 1px solid #36594b;
+            color: #f1faf5;
+            border-radius: 10px
+        }
+
+        input[type=range] {
+            accent-color: #90e3b5;
+            padding: 0
+        }
+
+        .result {
+            background: #1d3d2f;
+            border-radius: 14px;
+            padding: 19px;
+            margin-top: 18px
+        }
+
+        .result strong {
+            font-size: 27px
+        }
+
+        .roadmap {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px
+        }
+
+        .phase {
+            border-top: 3px solid #83ddb0
+        }
+
+        .phase small {
+            color: #8fe3b7
+        }
+
+        .footer {
+            border-top: 1px solid #294539;
+            padding: 25px 0;
+            color: #90aa9d;
+            font-size: 13px
+        }
+
+        .hidden {
+            display: none
+        }
+
+        .note {
+            font-size: 12px;
+            color: #8ba99b;
+            margin-top: 13px
+        }
+
+        @media(max-width:800px) {
+
+            .hero,
+            .demo {
+                grid-template-columns: 1fr
+            }
+
+            .grid3,
+            .roadmap {
+                grid-template-columns: 1fr
+            }
+
+            .side {
+                flex-direction: row;
+                overflow: auto
+            }
+
+            .navitem {
+                white-space: nowrap
+            }
+
+            .metrics {
+                grid-template-columns: 1fr 1fr
+            }
+
+            .shell {
+                padding: 18px
+            }
+
+            .hero {
+                padding-top: 38px
+            }
+
+            h1 {
+                letter-spacing: -2px
+            }
+        }
+
+        @media(max-width:500px) {
+
+            .metrics,
+            .controls,
+            .statrow {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="shell">
+        <header class="top">
+            <div class="brand">horizonte<span>.</span> <span class="pill">Nombre provisional</span></div>
+            <div class="pill">Sketch conceptual · v0.1</div>
+        </header>
+        <section class="hero">
+            <div>
+                <div class="eyebrow">La riqueza comienza con una dirección</div>
+                <h1>No solo controles tu dinero. <em>Construye tu futuro.</em></h1>
+                <p class="lead">Un punto de partida para un ecosistema que conecta finanzas, motivaciones personales y
+                    objetivos de vida, transformando información en decisiones y progreso.</p>
+                <div class="actions"><button class="btn"
+                        onclick="document.getElementById('prototipo').scrollIntoView({behavior:'smooth'})">Explorar
+                        prototipo →</button><button class="btn secondary"
+                        onclick="document.getElementById('modelo').scrollIntoView({behavior:'smooth'})">Ver propuesta de
+                        negocio</button></div>
+            </div>
+            <div class="panel glow">
+                <div class="small">Tu horizonte personal</div>
+                <div class="big">Independizarme</div>
+                <p>Un objetivo concreto, conectado con tu propósito y tu realidad económica.</p>
+                <div class="statrow">
+                    <div class="stat">
+                        <div class="small">Meta ilustrativa</div><strong>RD$240,000</strong>
+                    </div>
+                    <div class="stat">
+                        <div class="small">Plazo deseado</div><strong>24 meses</strong>
+                    </div>
+                </div>
+                <div class="small" style="margin-bottom:9px">Progreso de ejemplo · 34%</div>
+                <div class="progress"></div>
+                <p class="note">No es una promesa de resultados: es una forma de visualizar y ajustar un camino.</p>
+            </div>
+        </section>
+        <section class="section">
+            <div class="eyebrow">Nuestro fundamento</div>
+            <h2>Tres motivaciones. Una visión de riqueza.</h2>
+            <div class="grid3">
+                <article class="panel motivation">
+                    <div class="symbol">♡</div>
+                    <h3>Trascendental</h3>
+                    <p>¿Para quién o para qué quiero prosperar? Familia, legado, comunidad e impacto.</p>
+                </article>
+                <article class="panel motivation">
+                    <div class="symbol">✦</div>
+                    <h3>Intrínseca</h3>
+                    <p>¿En quién quiero convertirme? Aprendizaje, autonomía, capacidades y crecimiento.</p>
+                </article>
+                <article class="panel motivation">
+                    <div class="symbol">↗</div>
+                    <h3>Extrínseca</h3>
+                    <p>¿Qué quiero alcanzar? Seguridad económica, vivienda, ingresos y patrimonio.</p>
+                </article>
+            </div>
+        </section>
+        <section class="section" id="prototipo">
+            <div class="eyebrow">Experiencia interactiva</div>
+            <h2>Así podría comenzar el producto</h2>
+            <p>Un primer módulo de finanzas y objetivos. Prueba las pestañas y modifica las cifras para explorar
+                escenarios.</p>
+            <div class="demo">
+                <aside class="panel side">
+                    <div class="navitem active" data-tab="overview" onclick="showTab('overview')">◫ Mi panorama</div>
+                    <div class="navitem" data-tab="goals" onclick="showTab('goals')">◎ Mis motivaciones</div>
+                    <div class="navitem" data-tab="projection" onclick="showTab('projection')">↗ Proyecciones</div>
+                </aside>
+                <main class="panel view">
+                    <div id="overview">
+                        <div class="small">RESUMEN FINANCIERO · DEMOSTRACIÓN</div>
+                        <h2>Tu dinero, con un propósito.</h2>
+                        <div class="metrics">
+                            <div class="metric"><span class="small">Ingresos</span><b>RD$65,000</b></div>
+                            <div class="metric"><span class="small">Gastos</span><b>RD$50,500</b></div>
+                            <div class="metric"><span class="small">Excedente</span><b>RD$14,500</b></div>
+                        </div>
+                        <div class="result"><b>Tu siguiente paso</b>
+                            <p>Define un objetivo, identifica qué lo motiva y descubre cómo podrían cambiar tus plazos
+                                según tus decisiones financieras.</p><button class="btn"
+                                onclick="showTab('goals')">Definir mi dirección →</button>
+                        </div>
+                    </div>
+                    <div id="goals" class="hidden">
+                        <div class="small">MOTIVACIONES Y OBJETIVOS</div>
+                        <h2>¿Qué significa prosperar para ti?</h2><label class="field">Tu objetivo<select id="goalType">
+                                <option>Independizarme</option>
+                                <option>Crear un fondo de emergencia</option>
+                                <option>Estudiar o especializarme</option>
+                                <option>Emprender</option>
+                                <option>Comprar una vivienda</option>
+                            </select></label>
+                        <div class="controls"><label class="field">Motivación principal<select>
+                                    <option>Trascendental — cuidar a mi familia</option>
+                                    <option>Intrínseca — crecer y ser independiente</option>
+                                    <option>Extrínseca — alcanzar una meta material</option>
+                                </select></label><label class="field">¿Por qué es importante para ti?<input
+                                    placeholder="Ej.: tener estabilidad y libertad"></label></div>
+                        <div class="result">La meta es el destino. Tu motivación es la razón para recorrer el camino.<p
+                                class="note">En un producto real, esto alimentaría la priorización de objetivos y el
+                                acompañamiento.</p><button class="btn" onclick="showTab('projection')">Proyectar mi
+                                objetivo →</button></div>
+                    </div>
+                    <div id="projection" class="hidden">
+                        <div class="small">SIMULADOR · VALORES EDITABLES</div>
+                        <h2>Explora tu camino.</h2>
+                        <div class="controls"><label class="field">Ingresos mensuales (RD$)<input type="number"
+                                    id="income" value="65000" min="0" oninput="calculate()"></label><label
+                                class="field">Gastos mensuales (RD$)<input type="number" id="expenses" value="50500"
+                                    min="0" oninput="calculate()"></label><label class="field">Monto de la meta
+                                (RD$)<input type="number" id="target" value="240000" min="1"
+                                    oninput="calculate()"></label><label class="field">Plazo deseado (meses)<input
+                                    type="number" id="months" value="24" min="1" oninput="calculate()"></label></div>
+                        <div class="result">
+                            <div class="small">Ahorro mensual necesario</div><strong id="needed">RD$10,000</strong>
+                            <p id="message"></p>
+                            <div class="progress"><i id="bar"></i></div>
+                            <p class="note">Cálculo simplificado sin inflación, intereses, impuestos, imprevistos ni
+                                rentabilidad. El excedente no equivale necesariamente a ahorro disponible.</p>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </section>
+        <section class="section" id="modelo">
+            <div class="eyebrow">Propuesta estratégica</div>
+            <h2>Un producto inicial. Un ecosistema que evoluciona.</h2>
+            <div class="grid3">
+                <div class="panel">
+                    <div class="small">PROBLEMA</div>
+                    <h3>Conocer no es avanzar</h3>
+                    <p>Registrar gastos no siempre ayuda a entender cómo alcanzar objetivos ni a mejorar la capacidad
+                        económica.</p>
+                </div>
+                <div class="panel">
+                    <div class="small">SOLUCIÓN INICIAL</div>
+                    <h3>Finanzas + objetivos</h3>
+                    <p>Organizar movimientos, entender motivaciones, simular escenarios y acompañar decisiones.</p>
+                </div>
+                <div class="panel">
+                    <div class="small">NICHO HIPOTÉTICO</div>
+                    <h3>Profesionales jóvenes</h3>
+                    <p>Personas bancarizadas con metas importantes y necesidad de orientación práctica. Por validar con
+                        usuarios.</p>
+                </div>
+            </div>
+        </section>
+        <section class="section">
+            <div class="eyebrow">Hoja de ruta</div>
+            <h2>Crecer por etapas, no construirlo todo ahora.</h2>
+            <div class="roadmap">
+                <article class="panel phase"><small>ETAPA 01 · MVP</small>
+                    <h3>Comprender y proyectar</h3>
+                    <p>Finanzas, objetivos, motivaciones, escenarios y seguimiento. Integraciones progresivas y con
+                        consentimiento.</p>
+                </article>
+                <article class="panel phase"><small>ETAPA 02 · VALIDACIÓN</small>
+                    <h3>Acompañar y mejorar</h3>
+                    <p>Recomendaciones verificables, gestión de deudas, hábitos, educación y métricas de progreso real.
+                    </p>
+                </article>
+                <article class="panel phase"><small>ETAPA 03 · ECOSISTEMA</small>
+                    <h3>Conectar oportunidades</h3>
+                    <p>Formación, empleabilidad, aliados y herramientas patrimoniales según evidencia de demanda.</p>
+                </article>
+            </div>
+        </section>
+        <footer class="footer">Horizonte es un nombre de trabajo. Sketch para discusión y validación, no producto
+            financiero operativo ni asesoramiento personalizado.</footer>
+    </div>
+    <script>function showTab(tab) { ['overview', 'goals', 'projection'].forEach(x => document.getElementById(x).classList.toggle('hidden', x !== tab)); document.querySelectorAll('.navitem').forEach(x => x.classList.toggle('active', x.dataset.tab === tab)); if (tab === 'projection') calculate() } function money(v) { return 'RD$' + Math.round(v).toLocaleString('es-DO') } function calculate() { let inc = Math.max(0, +document.getElementById('income').value || 0), exp = Math.max(0, +document.getElementById('expenses').value || 0), target = Math.max(1, +document.getElementById('target').value || 1), months = Math.max(1, +document.getElementById('months').value || 1), free = inc - exp, needed = target / months, proj = Math.max(0, free) * months; document.getElementById('needed').textContent = money(needed); document.getElementById('bar').style.width = Math.min(100, proj / target * 100) + '%'; document.getElementById('message').textContent = free < 0 ? 'Tus gastos superan tus ingresos. Primero sería necesario cerrar esa brecha.' : free >= needed ? 'Con este excedente mensual, la meta sería matemáticamente alcanzable en el plazo indicado, antes de considerar imprevistos.' : 'Con los valores actuales, faltarían ' + money(needed - free) + ' mensuales para alcanzar la meta en el plazo deseado.' } calculate()</script>
+</body>
+
+</html>
