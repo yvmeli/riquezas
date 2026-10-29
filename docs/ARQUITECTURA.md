@@ -27,3 +27,7 @@ Las funciones financieras son atómicas, usan `search_path` vacío y no permiten
 El dashboard pagina los registros de PostgREST en bloques de 500 y agrega en Python. Antes de volúmenes grandes: agregación SQL con paginación estable, snapshots y consultas por rango. La exportación actual reúne datos en memoria. La limitación de solicitudes vive en un proceso de desarrollo; producción requiere control compartido en gateway. No hay workers bancarios activos ni servicios públicamente desplegados.
 
 La PWA conserva solo cinco recursos públicos explícitos. HTML privado, respuestas RSC, API, tokens y registros financieros no se guardan en caché offline.
+
+## Ingestión preparatoria
+
+`owl.ingestion` separa extracción PDF, normalización MIME, adaptadores de institución y conciliación. Los candidatos son inmutables, conservan Decimal y requieren revisión por defecto. La conciliación se limita explícitamente a usuario/cuenta: una clave idéntica de fuente es idempotente, una referencia bancaria verificada permite cotejo cruzado y una descripción/fecha/importe idénticos solo generan una sugerencia. Los reversos exigen una única referencia original verificable con moneda e importe coincidentes. No hay worker, tokens Gmail persistidos ni endpoints de importación activos.

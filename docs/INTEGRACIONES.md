@@ -14,6 +14,8 @@ Asignación inicial de administrador: mediante SQL privado por el titular del pr
 
 No habilitado. No se accede a sesiones personales de Brave ni se presume acceso por estar autenticado en Google Cloud. Las herramientas disponibles incluyen Playwright, pero no una conexión Supabase/Cloud específica suficiente para obtener configuración automáticamente.
 
+La consulta de pestañas del MCP Playwright no respondió dentro de su tiempo límite. Las pruebas locales usan Playwright instalado en el proyecto y Chromium; no comparten ni acreditan la sesión personal de Brave.
+
 Se debe crear o seleccionar un cliente OAuth web, registrar redirect exacto, consent screen y usuarios de prueba sin habilitar facturación. `gmail.readonly` es restringido; una app pública puede requerir verificación y evaluación adicionales. Usar la menor búsqueda necesaria, tokens cifrados en servidor y revocación. No hay consentimiento simulado ni correos procesados.
 
 ## Estados bancarios
@@ -21,5 +23,7 @@ Se debe crear o seleccionar un cliente OAuth web, registrar redirect exacto, con
 No hay muestras Qik/Popular en el contexto disponible. Un reporte OWL no sirve para validar un extractor bancario. Se requieren formatos con fechas, columnas, moneda, productos y casos ambiguos; solo fixtures sintéticos deben entrar en Git. Ningún documento privado se ha copiado al repositorio.
 
 ## Validación pendiente contra proveedor
+
+Los servicios internos `owl.ingestion` ya permiten extraer texto PDF, leer MIME y evaluar conciliación/reversos con evidencia mínima. Los adaptadores Qik/Popular rechazan toda entrada hasta validar formatos. No se expone aún una carga PDF: falta worker con límites de ejecución, borrador persistente corregible y confirmación atómica. Los encabezados Authentication-Results de un EML subido no se consideran confiables; su evaluación requiere transporte Gmail real y no certifica por sí sola el contenido.
 
 Registro → correo OTP real → verificación → login → trigger del trial → RLS PostgREST → onboarding → cuenta → ingreso/gasto/transferencia → exportación → cierre/renovación de sesión. El código está preparado para ese flujo, pero las pruebas sintéticas no lo certifican con un proyecto Supabase.

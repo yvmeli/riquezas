@@ -24,3 +24,5 @@ El responsable debe aprobar política legal, canal de atención, jurisdicción y
 Configurar HTTPS/cookies Secure, RLS y SMTP reales; rate limiter compartido y protección antiabuso de citas; límites de cuerpo en el gateway de FastAPI; observabilidad sin PII; auditoría independiente; backups y prueba de restauración. Las sesiones JWT ya emitidas pueden seguir siendo válidas hasta su expiración tras logout según comportamiento de Supabase; validar la política deseada antes de producción.
 
 No se han modificado permisos de nube ni roles de un proyecto remoto. La migración concede permisos al aplicarse: debe revisarse contra un entorno de desarrollo antes de cualquier cambio remoto.
+
+Los módulos preparatorios de ingestión no tienen endpoints públicos. Rechazan PDF cifrados, grandes, con demasiadas páginas o contenido activo, y limitan MIME. Estas validaciones no sustituyen aislamiento y límites del proceso: antes de habilitar cargas se requiere worker dedicado. No se confía en Authentication-Results de archivos subidos ni se borran coincidencias ambiguas de transacciones automáticamente.
