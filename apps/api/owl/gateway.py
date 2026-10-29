@@ -7,7 +7,9 @@ async def supabase(method: str, path: str, token: str | None = None, body=None):
     cfg = settings()
     if not cfg.supabase_anon_key:
         raise HTTPException(503, "Configura Supabase para habilitar esta función.")
-    headers = {"apikey": cfg.supabase_anon_key, "Authorization": f"Bearer {token or cfg.supabase_anon_key}", "Prefer": "return=representation"}
+    headers = {"apikey": cfg.supabase_anon_key, "Prefer": "return=representation"}
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             response = await client.request(method, cfg.supabase_url.rstrip("/") + path, headers=headers, json=body)
