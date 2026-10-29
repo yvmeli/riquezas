@@ -1,0 +1,19 @@
+{
+  "name": "owl",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/web",
+    "typecheck": "npm run typecheck --workspace apps/web",
+    "test:e2e": "playwright test",
+    "test:db": "node --test tests/database.test.mjs"
+    ,"start:admin": "node scripts/start-admin.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
+    "@playwright/test": "^1.56.1"
+  }
+}

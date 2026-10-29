@@ -1,0 +1,45 @@
+project_id = "owl"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth", "http://localhost:3001/auth"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+minimum_password_length = 12
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+max_frequency = "60s"
+otp_length = 6
+otp_expiry = 600
+
+[auth.email.template.confirmation]
+subject = "Verifica tu cuenta OWL"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Recupera tu acceso a OWL"
+content_path = "./templates/recovery.html"
