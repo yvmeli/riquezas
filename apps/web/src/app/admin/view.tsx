@@ -1,15 +1,278 @@
-'use client';
-import { useEffect,useState } from 'react';
-import { Brand } from '@/components/brand';
-import { ActionForm,Field,Select } from '@/components/form';
-import { api,ApiError } from '@/lib/api';
-type Appointment={id:string,name:string,email:string,phone:string,modality:string,preferred_at:string,status:string,outcome:string,scheduled_at:string|null};
-type Trial={user_id:string,started_at:string,expires_at:string,suspended:boolean};
-type Audit={id:number,action:string,created_at:string,subject_id:string};
-type Overview={role:string,appointments:Appointment[],trials:Trial[],audit:Audit[],settings:{trial_days:number}[]};
-export default function Admin(){
- const [data,setData]=useState<Overview|null>(null),[error,setError]=useState('');
- const reload=async()=>setData(await api<Overview>('admin/overview'));
- useEffect(()=>{reload().catch(error=>{if(error instanceof ApiError&&error.status===401)window.location.assign('/auth?admin=1');else setError(error.message);});},[]);
- return <><header className="public-header"><Brand/><span className="eyebrow">OPERACIONES · {data?.role||'ACCESO RESTRINGIDO'}</span><button className="text-button" onClick={async()=>{try{await api('auth/logout','POST',{});window.location.assign('/auth?admin=1');}catch(error){setError((error as Error).message);}}}>Cerrar sesión</button></header><main id="contenido" className="wrap section admin-page"><p className="eyebrow">PORTAL ADMINISTRATIVO</p><h1 className="admin-title">El pulso de OWL.</h1><p className="muted">Citas, pruebas y trazabilidad. Los roles administrativos no conceden acceso general a movimientos financieros.</p>{error&&<p className="notice error" role="alert">{error}</p>}{!data&&!error&&<p role="status">Validando permisos…</p>}{data&&<><div className="metrics-grid"><article className="metric featured"><div>Solicitudes pendientes</div><strong>{data.appointments.filter(a=>a.status==='requested').length}</strong></article><article className="metric"><div>Pruebas registradas</div><strong>{data.trials.length}</strong></article><article className="metric"><div>Pruebas vigentes</div><strong>{data.trials.filter(t=>!t.suspended&&new Date(t.expires_at)>new Date()).length}</strong></article></div><div className="admin-grid"><section className="panel"><h2>Solicitudes de orientación</h2>{data.appointments.length?data.appointments.map(a=><article className="admin-item" key={a.id}><h3>{a.name}</h3><p>{a.email} · {a.phone}<br/>{a.modality} · {new Date(a.preferred_at).toLocaleString('es-DO')}<br/><strong>Estado: {a.status}</strong></p><ActionForm submit="Actualizar solicitud" onSubmit={async fields=>{const payload={...fields,scheduled_at:fields.scheduled_at?new Date(fields.scheduled_at).toISOString():null};await api(`admin/appointments/${a.id}`,'PATCH',payload);await reload();return 'Solicitud actualizada.';}}><Select label="Estado" name="status" defaultValue={a.status==='requested'?'confirmed':a.status}><option value="confirmed">Confirmar</option><option value="rescheduled">Reprogramar</option><option value="cancelled">Cancelar</option><option value="closed">Cerrar</option></Select><Field label="Fecha acordada (obligatoria al confirmar o reprogramar)" name="scheduled_at" type="datetime-local"/><Field label="Resultado / nota" name="outcome" maxLength={500} defaultValue={a.outcome}/></ActionForm></article>):<p className="muted">Todavía no hay solicitudes.</p>}</section><section className="panel"><h2>Usuarios y pruebas</h2><p className="muted micro">Solo identificador y vigencia del trial. No se muestran estados bancarios.</p>{data.trials.map(t=><article className="admin-item" key={t.user_id}><p style={{overflowWrap:'anywhere'}}>Usuario: {t.user_id}<br/>Inicio: {new Date(t.started_at).toLocaleDateString('es-DO')}<br/>Vence: {new Date(t.expires_at).toLocaleDateString('es-DO')}</p>{['operator','owner'].includes(data.role)&&<ActionForm submit="Extender prueba" onSubmit={async fields=>{await api('admin/trials/extend','POST',{user_id:t.user_id,days:Number(fields.days),reason:fields.reason});await reload();return 'Extensión registrada.';}}><Field label="Días adicionales" name="days" type="number" min={1} max={365} required/><Field label="Motivo (queda en auditoría)" name="reason" minLength={5} maxLength={240} required/></ActionForm>}</article>)}</section></div><div className="admin-grid"><section className="panel"><h2>Configuración y extractores</h2><p className="muted">Gmail y los PDF bancarios siguen pendientes de configuración y muestras verificables. No se ejecutan sincronizaciones.</p>{data.role==='owner'&&<ActionForm submit="Actualizar duración" onSubmit={async fields=>{await api('admin/trial-duration?days='+Number(fields.days),'PUT',{});await reload();return 'Se aplicará a las nuevas cuentas verificadas.';}}><Field label="Duración inicial de nuevas pruebas (días)" name="days" type="number" min={1} max={90} defaultValue={data.settings[0]?.trial_days||14} required/></ActionForm>}</section><section className="panel"><h2>Auditoría reciente</h2>{data.audit.length?data.audit.map(event=><article className="audit-row" key={event.id}><strong>{event.action}</strong><span>{new Date(event.created_at).toLocaleString('es-DO')}</span><br/><code>{event.subject_id}</code></article>):<p className="muted">No hay eventos visibles para tu rol.</p>}</section></div></>}</main></>;
+"use client";
+import { useEffect, useState } from "react";
+import { Brand } from "@/components/brand";
+import { ActionForm, Field, Select } from "@/components/form";
+import { api, ApiError } from "@/lib/api";
+type Appointment = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  modality: string;
+  preferred_at: string;
+  status: string;
+  outcome: string;
+  scheduled_at: string | null;
+};
+type Trial = {
+  user_id: string;
+  started_at: string;
+  expires_at: string;
+  suspended: boolean;
+};
+type Audit = {
+  id: number;
+  action: string;
+  created_at: string;
+  subject_id: string;
+};
+type Overview = {
+  role: string;
+  appointments: Appointment[];
+  trials: Trial[];
+  audit: Audit[];
+  settings: { trial_days: number }[];
+};
+export default function Admin() {
+  const [data, setData] = useState<Overview | null>(null),
+    [error, setError] = useState("");
+  const reload = async () => setData(await api<Overview>("admin/overview"));
+  useEffect(() => {
+    reload().catch((error) => {
+      if (error instanceof ApiError && error.status === 401)
+        window.location.assign("/auth?admin=1");
+      else setError(error.message);
+    });
+  }, []);
+  return (
+    <>
+      <header className="public-header">
+        <Brand />
+        <span className="eyebrow">
+          OPERACIONES · {data?.role || "ACCESO RESTRINGIDO"}
+        </span>
+        <button
+          className="text-button"
+          onClick={async () => {
+            try {
+              await api("auth/logout", "POST", {});
+              window.location.assign("/auth?admin=1");
+            } catch (error) {
+              setError((error as Error).message);
+            }
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </header>
+      <main id="contenido" className="wrap section admin-page">
+        <p className="eyebrow">PORTAL ADMINISTRATIVO</p>
+        <h1 className="admin-title">El pulso de OWL.</h1>
+        <p className="muted">
+          Citas, pruebas y trazabilidad. Los roles administrativos no conceden
+          acceso general a movimientos financieros.
+        </p>
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
+          </p>
+        )}
+        {!data && !error && <p role="status">Validando permisos…</p>}
+        {data && (
+          <>
+            <div className="metrics-grid">
+              <article className="metric featured">
+                <div>Solicitudes pendientes</div>
+                <strong>
+                  {
+                    data.appointments.filter((a) => a.status === "requested")
+                      .length
+                  }
+                </strong>
+              </article>
+              <article className="metric">
+                <div>Pruebas registradas</div>
+                <strong>{data.trials.length}</strong>
+              </article>
+              <article className="metric">
+                <div>Pruebas vigentes</div>
+                <strong>
+                  {
+                    data.trials.filter(
+                      (t) =>
+                        !t.suspended && new Date(t.expires_at) > new Date(),
+                    ).length
+                  }
+                </strong>
+              </article>
+            </div>
+            <div className="admin-grid">
+              <section className="panel">
+                <h2>Solicitudes de orientación</h2>
+                {data.appointments.length ? (
+                  data.appointments.map((a) => (
+                    <article className="admin-item" key={a.id}>
+                      <h3>{a.name}</h3>
+                      <p>
+                        {a.email} · {a.phone}
+                        <br />
+                        {a.modality} ·{" "}
+                        {new Date(a.preferred_at).toLocaleString("es-DO")}
+                        <br />
+                        <strong>Estado: {a.status}</strong>
+                      </p>
+                      <ActionForm
+                        submit="Actualizar solicitud"
+                        onSubmit={async (fields) => {
+                          const payload = {
+                            ...fields,
+                            scheduled_at: fields.scheduled_at
+                              ? new Date(fields.scheduled_at).toISOString()
+                              : null,
+                          };
+                          await api(
+                            `admin/appointments/${a.id}`,
+                            "PATCH",
+                            payload,
+                          );
+                          await reload();
+                          return "Solicitud actualizada.";
+                        }}
+                      >
+                        <Select
+                          label="Estado"
+                          name="status"
+                          defaultValue={
+                            a.status === "requested" ? "confirmed" : a.status
+                          }
+                        >
+                          <option value="confirmed">Confirmar</option>
+                          <option value="rescheduled">Reprogramar</option>
+                          <option value="cancelled">Cancelar</option>
+                          <option value="closed">Cerrar</option>
+                        </Select>
+                        <Field
+                          label="Fecha acordada (obligatoria al confirmar o reprogramar)"
+                          name="scheduled_at"
+                          type="datetime-local"
+                        />
+                        <Field
+                          label="Resultado / nota"
+                          name="outcome"
+                          maxLength={500}
+                          defaultValue={a.outcome}
+                        />
+                      </ActionForm>
+                    </article>
+                  ))
+                ) : (
+                  <p className="muted">Todavía no hay solicitudes.</p>
+                )}
+              </section>
+              <section className="panel">
+                <h2>Usuarios y pruebas</h2>
+                <p className="muted micro">
+                  Solo identificador y vigencia del trial. No se muestran
+                  estados bancarios.
+                </p>
+                {data.trials.map((t) => (
+                  <article className="admin-item" key={t.user_id}>
+                    <p style={{ overflowWrap: "anywhere" }}>
+                      Usuario: {t.user_id}
+                      <br />
+                      Inicio:{" "}
+                      {new Date(t.started_at).toLocaleDateString("es-DO")}
+                      <br />
+                      Vence:{" "}
+                      {new Date(t.expires_at).toLocaleDateString("es-DO")}
+                    </p>
+                    {["operator", "owner"].includes(data.role) && (
+                      <ActionForm
+                        submit="Extender prueba"
+                        onSubmit={async (fields) => {
+                          await api("admin/trials/extend", "POST", {
+                            user_id: t.user_id,
+                            days: Number(fields.days),
+                            reason: fields.reason,
+                          });
+                          await reload();
+                          return "Extensión registrada.";
+                        }}
+                      >
+                        <Field
+                          label="Días adicionales"
+                          name="days"
+                          type="number"
+                          min={1}
+                          max={365}
+                          required
+                        />
+                        <Field
+                          label="Motivo (queda en auditoría)"
+                          name="reason"
+                          minLength={5}
+                          maxLength={240}
+                          required
+                        />
+                      </ActionForm>
+                    )}
+                  </article>
+                ))}
+              </section>
+            </div>
+            <div className="admin-grid">
+              <section className="panel">
+                <h2>Configuración y extractores</h2>
+                <p className="muted">
+                  Gmail y los PDF bancarios siguen pendientes de configuración y
+                  muestras verificables. No se ejecutan sincronizaciones.
+                </p>
+                {data.role === "owner" && (
+                  <ActionForm
+                    submit="Actualizar duración"
+                    onSubmit={async (fields) => {
+                      await api(
+                        "admin/trial-duration?days=" + Number(fields.days),
+                        "PUT",
+                        {},
+                      );
+                      await reload();
+                      return "Se aplicará a las nuevas cuentas verificadas.";
+                    }}
+                  >
+                    <Field
+                      label="Duración inicial de nuevas pruebas (días)"
+                      name="days"
+                      type="number"
+                      min={1}
+                      max={90}
+                      defaultValue={data.settings[0]?.trial_days || 14}
+                      required
+                    />
+                  </ActionForm>
+                )}
+              </section>
+              <section className="panel">
+                <h2>Auditoría reciente</h2>
+                {data.audit.length ? (
+                  data.audit.map((event) => (
+                    <article className="audit-row" key={event.id}>
+                      <strong>{event.action}</strong>
+                      <span>
+                        {new Date(event.created_at).toLocaleString("es-DO")}
+                      </span>
+                      <br />
+                      <code>{event.subject_id}</code>
+                    </article>
+                  ))
+                ) : (
+                  <p className="muted">No hay eventos visibles para tu rol.</p>
+                )}
+              </section>
+            </div>
+          </>
+        )}
+      </main>
+    </>
+  );
 }

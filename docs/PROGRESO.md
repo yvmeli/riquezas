@@ -21,9 +21,10 @@ Se confirmó rama `mvp`, remoto `yvmeli/riquezas`, commit inicial `0577191` y ar
 ## Evidencia de calidad
 
 - Producción Next.js: compilación aprobada.
-- Python: 47 pruebas aprobadas (API con proveedor simulado, modelos y cálculos exactos).
+- Python: 71 pruebas aprobadas (API con proveedor simulado, gateway, modelos, cálculos exactos e ingestión preparatoria).
 - PostgreSQL embebido: 14 pruebas aprobadas sobre la migración real: trigger, RLS, acceso cruzado, transferencias, idempotencia, trial, roles y eliminación.
-- Playwright: 24 escenarios aprobados; incluye 320, 375, 390, 430, 768, 1024 y 1440 px y administración en origen independiente.
+- Formato monetario TypeScript: 4 pruebas aprobadas para centavos exactos, límites grandes, signos y sumas de aportaciones.
+- Playwright: 25 escenarios aprobados; incluye 320, 375, 390, 430, 768, 1024 y 1440 px, administración en origen independiente y foco de teclado. El runner cerró correctamente en Windows al ejecutarse fuera del entorno restringido.
 - Capturas locales de landing/portal inspeccionadas. Se usan datos sintéticos exclusivamente en pruebas; capturas quedan ignoradas en `.local`.
 
 ## Pendiente / no certificado
@@ -36,4 +37,14 @@ Falta verificar instalación en iOS/Android físicos, accesibilidad completa por
 
 ## Siguiente paso
 
-Cerrar la validación de este corte, publicar en `origin/mvp` y continuar con infraestructura de ingestión segura usando fixtures sintéticos. La certificación de extractores específicos necesita muestras verificables privadas; conectar un proyecto real requiere configuración local segura, no credenciales por chat.
+Configurar Supabase localmente y ejecutar el smoke test real. La certificación de extractores específicos necesita muestras verificables privadas; conectar un proyecto real requiere configuración local segura, no credenciales por chat.
+
+## Segundo avance — ingestión preparatoria
+
+El primer corte se publicó como `d1694ad` en `origin/mvp`. Después se añadieron módulos internos para extracción de texto PDF con validación de tamaño/páginas/cifrado/contenido activo; lectura MIME/HTML/alternativas/mensajes anidados; evidencia de remitente sobre transporte Gmail de confianza; conciliación por clave de fuente o referencia verificada; y asociación conservadora de reversos. Se probaron con PDF generados en memoria y mensajes sintéticos, sin archivos bancarios privados.
+
+Estos módulos **no constituyen una integración bancaria habilitada**. No existe endpoint de carga ni conexión Gmail activa; ambos adaptadores rechazan formatos no verificados. Las coincidencias sin referencia verificable quedan como posibles duplicados, para evitar borrar compras legítimas del mismo día. El parser PDF deberá ejecutarse en un worker con límites antes de exponer uploads.
+
+Se dejó el código frontend formateado para revisión y mantenimiento. Los diálogos financieros conservan el foco por teclado y lo devuelven al botón de origen al cerrarse. El formato monetario usa BigInt y partes de Intl para conservar los centavos incluso en el límite de numeric(16,2); los tooltips conservan el importe exacto separado de la coordenada numérica de la gráfica. Las instalaciones anteriores interrumpidas terminaron y no hay un instalador pendiente.
+
+Total del corte: 114 pruebas aprobadas, TypeScript y build de producción sin errores. Las advertencias de deprecación de librerías en las pruebas no afectan este resultado; su migración queda para mantenimiento. Antes de cada commit se revisó rama, diff y posibles secretos/documentos privados. El script `scripts/check_staged.py` permite repetir esta revisión sin imprimir valores sensibles.

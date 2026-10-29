@@ -13,7 +13,8 @@ Node.js 22+ y Python 3.12+. Supabase local (CLI + Docker) o proyecto de desarrol
 ```powershell
 npm.cmd ci
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e 'apps/api[test]'
+.\.venv\Scripts\python.exe -m pip install -r apps/api/requirements.lock
+.\.venv\Scripts\python.exe -m pip install --no-deps -e apps/api
 Copy-Item .env.example apps/api/.env
 ```
 
@@ -65,6 +66,7 @@ Abrir **http://localhost:3001**. Requiere una cuenta verificada y rol asignado d
 ```powershell
 .\.venv\Scripts\python.exe -m pytest apps/api -q
 npm.cmd run test:db
+npm.cmd run test:money
 npm.cmd run typecheck
 npm.cmd run build
 # Con API y frontend de producción local iniciados:
