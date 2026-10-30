@@ -15,7 +15,7 @@ npm.cmd ci
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r apps/api/requirements.lock
 .\.venv\Scripts\python.exe -m pip install --no-deps -e apps/api
-Copy-Item .env.example apps/api/.env
+if (-not (Test-Path apps/api/.env)) { Copy-Item .env.example apps/api/.env }
 ```
 
 Editar `apps/api/.env` localmente: `SUPABASE_URL`, `SUPABASE_ANON_KEY`; mantener `FRONTEND_ORIGIN=http://localhost:3000` y `ADMIN_ORIGIN=http://localhost:3001`. No pegar credenciales en el chat ni confirmarlas en Git.
@@ -31,7 +31,7 @@ Usar las claves de esa instancia. Buzón OTP local: `http://localhost:54324`. Pa
 
 ## Ejecutar
 
-Terminal API (la configuración `.env` se carga desde su directorio):
+Terminal API (la configuración se carga siempre desde `apps/api/.env`, independientemente del directorio actual):
 
 ```powershell
 cd apps/api
@@ -85,3 +85,22 @@ Si Chromium falta: `npx.cmd playwright install chromium`. Playwright usa fixture
 - [Decisiones técnicas](docs/DECISIONES_TECNICAS.md)
 
 Sin pasarelas de pago, facturación habilitada ni despliegues públicos. Documentos bancarios, contactos del contexto, secretos y archivos `.env` quedan fuera de Git.
+
+## Integración hosted y primera prueba real
+
+Proyecto autorizado: `lwhpwbyfyrxojpbcuyex`, URL `https://lwhpwbyfyrxojpbcuyex.supabase.co`. La aplicación usa PostgREST con el JWT del usuario; no necesita service-role ni contraseña PostgreSQL. El acceso para migraciones es independiente.
+
+`scripts/configure_local.py` configura los valores locales conocidos y genera la clave de cifrado solo si falta, conservando credenciales existentes. `scripts/check_supabase.py` comprueba HTTPS/Auth sin mostrar claves ni datos personales y guarda un diagnóstico ignorado en `.local`.
+
+Antes de migrar, inspeccionar `supabase/preflight.sql` y el historial real. No repetir la migración inicial si ya está aplicada o existen nombres en conflicto. La migración adicional prepara los dominios de ingestión sin habilitar parsers ni conexiones.
+
+Con Supabase configurado, OTP real habilitado y los tres servidores iniciados:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/check_supabase.py
+node scripts/live_e2e.mjs --email <correo-de-prueba-autorizado>
+```
+
+El runner no usa mocks. La contraseña generada solo se guarda en `.local/live-*/account.env`. Se detiene en `waiting_real_signup_otp` hasta que se introduzca el código recibido en `signup-otp.txt` del mismo directorio, sin acceder a bandejas. Comprueba trial, onboarding, registros, cálculos, logout/relogin y persistencia; la validación administrativa y con segundo usuario queda separada.
+
+El recorrido real **todavía no se ha ejecutado**: falta acceso autorizado para obtener la clave pública, revisar/aplicar migraciones y confirmar Auth. No debe confundirse con los tests de fixtures sintéticos.

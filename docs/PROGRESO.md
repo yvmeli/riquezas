@@ -48,3 +48,31 @@ Estos módulos **no constituyen una integración bancaria habilitada**. No exist
 Se dejó el código frontend formateado para revisión y mantenimiento. Los diálogos financieros conservan el foco por teclado y lo devuelven al botón de origen al cerrarse. El formato monetario usa BigInt y partes de Intl para conservar los centavos incluso en el límite de numeric(16,2); los tooltips conservan el importe exacto separado de la coordenada numérica de la gráfica. Las instalaciones anteriores interrumpidas terminaron y no hay un instalador pendiente.
 
 Total del corte: 114 pruebas aprobadas, TypeScript y build de producción sin errores. Las advertencias de deprecación de librerías en las pruebas no afectan este resultado; su migración queda para mantenimiento. Antes de cada commit se revisó rama, diff y posibles secretos/documentos privados. El script `scripts/check_staged.py` permite repetir esta revisión sin imprimir valores sensibles.
+
+## Integración real — 29 de octubre de 2026
+
+Se retomó desde `8f17a4c`, con `mvp` limpio. `main` y `sketch` permanecen intactas.
+
+### Comprobado realmente
+
+- Configurados los archivos locales ignorados: URL del proyecto `lwhpwbyfyrxojpbcuyex`, orígenes cliente/admin, URL del backend y clave de cifrado generada sin imprimirla. La clave pública y las credenciales OAuth/PostgreSQL siguen pendientes de acceso autorizado.
+- El endpoint Auth del proyecto respondió HTTP 401 a una consulta HTTPS sin clave: confirma conectividad, no autenticación ni tablas instaladas.
+- Cliente, API y acceso administrativo respondieron HTTP 200 en localhost:3000, 8000 y 3001. Health informa correctamente `supabase_configured=false`.
+- Auditoría de 168 objetos alcanzables del historial Git sin patrones de claves/tokens detectados. No sustituye una auditoría exhaustiva.
+- Browser no encontró sesiones disponibles. No se reutilizó ni extrajo la sesión de Brave. Se encontró el plugin Supabase, todavía sin conexión confirmada, y se solicitó vincularlo al proyecto. Se solicitó también el correo para el OTP, sin acceso a la bandeja.
+
+### Cambios implementados
+
+- Configuración del backend por ruta estable `apps/api/.env`, independiente del directorio actual.
+- Revisión previa de migración inicial: revocaciones limitadas a objetos OWL y trigger que no bloquea verificaciones ajenas sin consentimiento OWL.
+- Migración aditiva para instituciones, categorías, conexiones, credenciales cifradas fuera del esquema expuesto, importaciones, borradores y sincronizaciones. RLS separa usuarios. Una conexión pendiente no puede activarse ni sincronizar sin OAuth validado.
+- El catálogo privado recoge categorías de movimientos/presupuestos; la eliminación propia contempla nuevos dominios y exige revocar conexiones activas primero.
+- Preparados diagnóstico HTTPS, auditoría histórica, preflight SQL y E2E opt-in real con pausa para OTP. El runner solo fue comprobado sintácticamente; no se atribuye una ejecución real inexistente.
+
+### Pruebas y pendientes
+
+74 pruebas Python, 19 PostgreSQL embebido, 4 de formato monetario y 25 Playwright con fixtures: 122 en total. Build de producción aprobado. Esta evidencia es distinta de validar Supabase hospedado. La configuración rechaza claves secret/service-role en el campo público y los errores no imprimen sus valores.
+
+No se aplicó ninguna migración remota ni se creó un usuario real. No hay OTP enviado/verificado, trial remoto activado, persistencia remota comprobada ni administrador designado. Falta la vinculación autorizada al proyecto y el correo para la prueba. No se requiere la contraseña de la cuenta Supabase; una contraseña PostgreSQL solo se pedirá si resulta necesaria para una vía de migración directa.
+
+Google Cloud se inspeccionará después del primer recorrido Supabase, conforme al orden solicitado. No se habilitó facturación ni se modificaron permisos externos o consentimientos Gmail. Los archivos de contexto siguen sin incluir muestras Qik/Popular: los PDF disponibles son materiales comerciales.

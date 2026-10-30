@@ -301,6 +301,11 @@ test("appointments stay pending instead of claiming a confirmed booking", async 
 test("real API reports unavailable Supabase without fabricated records", async ({
   page,
 }) => {
+  const health = await page.request.get("/api/health");
+  test.skip(
+    health.ok() && (await health.json()).supabase_configured,
+    "Supabase configurado: ejecutar el flujo real opt-in; no enviar logins ficticios al proveedor.",
+  );
   await page.goto("/auth");
   await page.getByLabel("Correo electrónico").fill("synthetic@example.com");
   await page
