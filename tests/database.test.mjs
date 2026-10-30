@@ -2,7 +2,7 @@
 // Hosted GoTrue/PostgREST still require the separate Supabase smoke test.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 
 const db = new PGlite();
@@ -45,16 +45,17 @@ before(async () => {
  create table auth.users(id uuid primary key,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
  grant usage on schema auth,public to anon,authenticated;
- grant execute on function auth.uid() to anon,authenticated;`);
-  await db.exec(
-    await readFile(
-      new URL(
-        "../supabase/migrations/202610280001_foundation.sql",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-  );
+ grant execute on function auth.uid() to anon,authenticated;
+ create table public.unrelated_application(id integer primary key);
+ grant select on public.unrelated_application to anon;
+ create function public.unrelated_function() returns integer language sql as $$ select 42 $$;
+ grant execute on function public.unrelated_function() to anon;`);
+  const directory = new URL("../supabase/migrations/", import.meta.url);
+  for (const filename of (await readdir(directory))
+    .filter((name) => name.endsWith(".sql"))
+    .sort()) {
+    await db.exec(await readFile(new URL(filename, directory), "utf8"));
+  }
   for (const id of [alice, bob, admin, support])
     await db.query(
       'insert into auth.users(id,email_confirmed_at,raw_user_meta_data) values($1,now(),\'{"first_name":"Sintético","accepted_terms":true}\')',
@@ -95,6 +96,31 @@ after(async () => {
   await db.close();
 });
 
+test("migrations preserve existing unrelated table and function permissions", async () => {
+  await login("", "anon");
+  assert.equal(
+    (await db.query("select * from public.unrelated_application")).rows.length,
+    0,
+  );
+  assert.equal(
+    (await db.query("select public.unrelated_function() as value")).rows[0]
+      .value,
+    42,
+  );
+});
+
+test("verification outside OWL consent does not break shared Auth or create a trial", async () => {
+  await db.exec("reset role");
+  const outsider = "00000000-0000-4000-8000-000000000088";
+  await db.query(
+    "insert into auth.users(id,email_confirmed_at) values($1,now())",
+    [outsider],
+  );
+  await login(outsider);
+  assert.equal(await count("profiles"), 0);
+  assert.equal(await count("trials"), 0);
+});
+
 test("verification creates profile and configurable trial once", async () => {
   await login(alice);
   assert.equal(await count("profiles"), 1);
@@ -129,6 +155,84 @@ test("unverified signup does not start trial", async () => {
   ]);
   await login(unverified);
   assert.equal(await count("trials"), 1);
+});
+
+test("institution catalog is public but does not claim verified parsers", async () => {
+  await login("", "anon");
+  const rows = (
+    await db.query("select * from public.institutions order by code")
+  ).rows;
+  assert.equal(rows.length, 2);
+  assert.ok(
+    rows.every((row) => !row.email_parser_verified && !row.pdf_parser_verified),
+  );
+  await assert.rejects(
+    db.query("update public.institutions set pdf_parser_verified=true"),
+    /permission denied/,
+  );
+});
+
+test("pending connections cannot claim OAuth consent or queue synchronization", async () => {
+  await login(alice);
+  const connection = (
+    await db.query(
+      "insert into public.bank_connections(user_id,provider) values($1,'gmail') returning id",
+      [alice],
+    )
+  ).rows[0].id;
+  await assert.rejects(
+    db.query(
+      "update public.bank_connections set status='active',consented_at=now() where id=$1",
+      [connection],
+    ),
+    /permission denied/,
+  );
+  await assert.rejects(
+    db.query(
+      "insert into public.sync_runs(user_id,connection_id) values($1,$2)",
+      [alice, connection],
+    ),
+    /row-level security/,
+  );
+  await assert.rejects(
+    db.query("select * from owl_private.connection_tokens"),
+    /permission denied/,
+  );
+  await login(bob);
+  assert.equal(await count("bank_connections"), 0);
+});
+
+test("imports and drafts enforce account ownership and review before confirmation", async () => {
+  await login(alice);
+  const identifier = (
+    await db.query(
+      "insert into public.imports(user_id,account_id,institution,source,document_sha256) values($1,$2,'qik','pdf',$3) returning id",
+      [alice, debit, "a".repeat(64)],
+    )
+  ).rows[0].id;
+  await db.query(
+    "insert into public.import_rows(user_id,import_id,row_number,source_key) values($1,$2,1,'synthetic-source-row')",
+    [alice, identifier],
+  );
+  const row = (await db.query("select * from public.import_rows")).rows[0];
+  assert.equal(row.amount, null);
+  assert.equal(row.needs_review, true);
+  await assert.rejects(
+    db.query("update public.imports set status='confirmed' where id=$1", [
+      identifier,
+    ]),
+    /permission denied/,
+  );
+  await login(bob);
+  assert.equal(await count("imports"), 0);
+  assert.equal(await count("import_rows"), 0);
+  await assert.rejects(
+    db.query(
+      "insert into public.imports(user_id,account_id,institution,source) values($1,$2,'qik','pdf')",
+      [bob, debit],
+    ),
+    /foreign key/,
+  );
 });
 
 test("RLS hides other users accounts and financial rows from administrators", async () => {
@@ -212,6 +316,10 @@ test("transactions cannot bypass the RPC or be edited by another user", async ()
     /movement denied/,
   );
   assert.equal(await count("transactions"), 0);
+  assert.equal(await count("imports"), 0);
+  assert.equal(await count("import_rows"), 0);
+  assert.equal(await count("bank_connections"), 0);
+  assert.equal(await count("categories"), 0);
 });
 
 test("manual edit preserves account topology and logs audit", async () => {
@@ -395,6 +503,10 @@ test("delete financial data is owner-scoped and does not restart trial", async (
   await db.query("select public.delete_my_data()");
   assert.equal(await count("accounts"), 0);
   assert.equal(await count("transactions"), 0);
+  assert.equal(await count("imports"), 0);
+  assert.equal(await count("import_rows"), 0);
+  assert.equal(await count("bank_connections"), 0);
+  assert.equal(await count("categories"), 0);
   assert.equal(
     (
       await db.query("select expires_at from public.trials")

@@ -89,9 +89,9 @@ $$;
 create function public.initialize_user() returns trigger language plpgsql security definer set search_path='' as $$
 begin
  if new.email_confirmed_at is not null and (TG_OP='INSERT' or old.email_confirmed_at is null) then
-   if new.raw_user_meta_data->'accepted_terms' is distinct from 'true'::jsonb then
-    raise exception 'terms consent required';
-   end if;
+   -- Other applications may share Auth. Only explicitly opted-in OWL accounts
+   -- receive financial profiles; never block an unrelated user's verification.
+   if new.raw_user_meta_data->'accepted_terms' is distinct from 'true'::jsonb then return new; end if;
    insert into public.profiles(id,first_name,last_name,phone) values(new.id,
     left(coalesce(new.raw_user_meta_data->>'first_name',''),80),left(coalesce(new.raw_user_meta_data->>'last_name',''),80),
     left(coalesce(new.raw_user_meta_data->>'phone',''),30)) on conflict do nothing;
@@ -224,13 +224,13 @@ begin
 end; $$;
 
 -- Explicit least privilege: Supabase defaults may otherwise grant broader column writes.
-revoke all on all tables in schema public from anon, authenticated;
+revoke all on public.profiles,public.admin_roles,public.trials,public.system_settings,public.audit_events,public.appointments,public.accounts,public.transactions,public.budgets,public.goals,public.contributions from anon, authenticated;
 grant select on public.profiles,public.admin_roles,public.trials,public.system_settings,public.audit_events,public.appointments,public.accounts,public.transactions,public.budgets,public.goals,public.contributions to authenticated;
 grant insert on public.accounts,public.budgets,public.goals,public.contributions to authenticated;
 grant update(template,methods,onboarding_completed) on public.profiles to authenticated;
 grant update(trial_days) on public.system_settings to authenticated;
 grant update(status,scheduled_at,outcome) on public.appointments to authenticated;
-revoke execute on all functions in schema public from public,anon,authenticated;
+revoke execute on function public.admin_has(text[]),public.trial_active(),public.initialize_user(),public.create_transaction(jsonb),public.edit_manual(uuid,jsonb),public.delete_manual(uuid),public.reclassify(uuid,text),public.request_appointment(jsonb),public.extend_trial(uuid,integer,text),public.delete_my_data() from public,anon,authenticated;
 grant execute on function public.admin_has(text[]),public.trial_active(),public.create_transaction(jsonb),public.edit_manual(uuid,jsonb),public.delete_manual(uuid),public.reclassify(uuid,text),public.extend_trial(uuid,integer,text),public.delete_my_data() to authenticated;
 grant execute on function public.request_appointment(jsonb) to anon,authenticated;
 
