@@ -2,6 +2,8 @@
 
 ## Supabase
 
+Actualización administrativa: migración `202610310001` aplicada y verificada con 19 tablas públicas y RLS. El titular autorizó expresamente asignar `owner` a su identidad existente; la asignación quedó auditada y el panel real respondió 200. Ver [invitaciones](INVITACIONES.md) para pruebas y pendientes. Login sin contraseña por OTP probado realmente sobre HTTPS/ngrok; los detalles y actualización de dominios están en [NGROK.md](NGROK.md).
+
 Backend: `SUPABASE_URL` y `SUPABASE_ANON_KEY` en `apps/api/.env`. No se usa service-role ni contraseña PostgreSQL para ejecutar la app. Las versiones `202610280001` y `202610290001` ya se aplicaron al proyecto autorizado mediante SQL Editor, en una transacción y con registro en `supabase_migrations.schema_migrations`. No se deben repetir.
 
 Estado vigente al 31/10/2026: clave pública configurada localmente y comprobada contra Auth; 17 tablas públicas con RLS confirmado en PostgreSQL real. Playwright MCP accedió a la sesión de Supabase; no se necesitó instalar el plugin ni extraer cookies/tokens del navegador. Las notas del 29/10 más abajo describen el diagnóstico anterior a conseguir ese acceso.
@@ -35,6 +37,8 @@ El SMTP incluido solo admite destinatarios preautorizados del equipo y tiene cuo
 Asignación inicial de administrador: mediante SQL privado por el titular del proyecto, insertar el UUID del usuario ya verificado en `public.admin_roles`. `support` gestiona citas y consulta trials; `operator` además extiende trials y lee auditoría; `owner` además cambia la duración inicial. No hay formulario para conceder privilegios.
 
 ## Gmail
+
+Inspección actual del proyecto Google `our-wealth-latam`: no existían clientes OAuth. Se configuró la identidad de OWL en Google Auth Platform con audiencia externa en modo de pruebas. La configuración del cliente y Gmail API continúa; no se concedió consentimiento Gmail, no se leyeron correos ni se habilitó facturación. Este avance no habilita todavía una conexión bancaria.
 
 No habilitado. No se accede a sesiones personales de Brave ni se presume acceso por estar autenticado en Google Cloud. Las herramientas disponibles incluyen Playwright, pero no una conexión Supabase/Cloud específica suficiente para obtener configuración automáticamente.
 

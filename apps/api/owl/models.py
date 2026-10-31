@@ -35,7 +35,27 @@ class Email(Model):
 
 class Verify(Email):
     code: str = Field(pattern=r"^\d{6,10}$")
-    kind: Literal["signup", "recovery"] = "signup"
+    kind: Literal["signup", "recovery", "email"] = "signup"
+
+
+class InvitationCreate(Email):
+    role: Literal['client', 'support', 'operator', 'owner']
+
+
+class InvitationAccept(Model):
+    accepted_terms: Literal[True]
+
+
+class LinkSession(Model):
+    token_hash: str = Field(min_length=32, max_length=256, pattern=r'^[A-Za-z0-9_-]+$')
+
+
+class InvitationSession(LinkSession):
+    invitation_id: UUID
+
+
+class UserAccess(Model):
+    disabled: bool
 
 
 class Password(Model):

@@ -1,1 +1,4 @@
 <h1>Bienvenido a OWL</h1><p>Tu código para verificar el correo es:</p><strong>{{ .Token }}</strong><p>Vence en 10 minutos. Nunca compartas este código.</p>
+{{ if .Data.owl_invitation }}
+<p><a href="{{ .RedirectTo }}#token_hash={{ .TokenHash }}">Revisar y aceptar invitación</a></p>
+{{ end }}

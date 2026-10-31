@@ -14,6 +14,7 @@ from .models import (Account, Appointment, AppointmentUpdate, Budget, Contributi
                      Email, Goal, Login, Onboarding, Password, Reclassify, Registration,
                      TrialExtension, Verify)
 from .models import Transaction
+from .models import InvitationCreate, InvitationAccept, InvitationSession, LinkSession, UserAccess
 from .security import administrator, current_user, limiter
 
 app = FastAPI(title='OWL API', version='0.1.0', docs_url='/docs', redoc_url=None)
@@ -22,7 +23,7 @@ app = FastAPI(title='OWL API', version='0.1.0', docs_url='/docs', redoc_url=None
 @app.middleware('http')
 async def secure_requests(request: Request, call_next):
     if request.method not in ('GET', 'HEAD', 'OPTIONS'):
-        if request.headers.get('origin') not in (settings().frontend_origin, settings().admin_origin):
+        if request.headers.get('origin') not in settings().trusted_origins():
             return JSONResponse({'detail': 'Origen no autorizado.'}, status_code=403)
         body = bytearray()
         async for chunk in request.stream():
@@ -82,13 +83,26 @@ async def register(data: Registration):
 async def verify(data: Verify, response: Response):
     limiter.check(('verify', str(data.email).lower()), 5, 600)
     result = await supabase('POST', '/auth/v1/verify', body={'email': str(data.email), 'token': data.code, 'type': data.kind})
-    if data.kind == 'recovery':
+    if data.kind in ('recovery', 'email'):
         set_session(response, result)
     else:
         # Verification initializes the trial in Postgres; require explicit password login next.
-        await supabase('POST', '/auth/v1/logout', result['access_token'], {})
+        await supabase('POST', '/auth/v1/logout?scope=local', result['access_token'], {})
         clear_session(response)
-    return {'message': 'Correo verificado.' if data.kind == 'signup' else 'Introduce tu nueva contraseña.'}
+    return {'message': 'Sesión iniciada.' if data.kind == 'email' else 'Correo verificado.' if data.kind == 'signup' else 'Introduce tu nueva contraseña.'}
+
+
+@app.post('/auth/code', status_code=202)
+async def login_code(data: Email, request: Request):
+    limiter.check(('login-code', str(data.email).lower()), 1, 60)
+    limiter.check(('login-code-hour', str(data.email).lower()), 5, 3600)
+    try:
+        redirect = request.headers.get('origin', settings().frontend_origin) + '/auth'
+        await supabase('POST', '/auth/v1/otp?' + urlencode({'redirect_to': redirect}), body={'email': str(data.email), 'create_user': False})
+    except HTTPException as exc:
+        if exc.status_code not in (400, 404):
+            raise
+    return {'message': 'Si tu cuenta existe, recibirás un código. Espera 60 segundos para reenviar.'}
 
 
 @app.post('/auth/login')
@@ -136,7 +150,7 @@ async def logout(request: Request, response: Response):
     token = request.cookies.get('owl_access')
     if token:
         try:
-            await supabase('POST', '/auth/v1/logout', token, {})
+            await supabase('POST', '/auth/v1/logout?scope=local', token, {})
         except HTTPException as exc:
             if exc.status_code != 401:
                 raise
@@ -154,6 +168,8 @@ async def request_appointment(data: Appointment):
 
 @app.get('/me')
 async def me(user=Depends(current_user)):
+    if await supabase('POST', '/rest/v1/rpc/user_is_active', user['token'], {}) is False:
+        raise HTTPException(403, 'Tu acceso está desactivado. Contacta con OWL.')
     profile = await supabase('GET', '/rest/v1/profiles?select=*', user['token'])
     trials = await supabase('GET', '/rest/v1/trials?' + urlencode({'select':'*','user_id':'eq.'+user['id']}), user['token'])
     # An admin can read many trials under RLS. Select only their own here.
@@ -170,8 +186,9 @@ async def onboarding(data: Onboarding, user=Depends(current_user)):
 async def all_rows(table, token):
     rows = []
     offset = 0
+    order = 'user_id' if table == 'trials' else 'id'
     while True:
-        batch = await supabase('GET', f'/rest/v1/{table}?select=*&order=id&limit=500&offset={offset}', token)
+        batch = await supabase('GET', f'/rest/v1/{table}?select=*&order={order}&limit=500&offset={offset}', token)
         rows.extend(batch)
         if len(batch) < 500:
             return rows
@@ -296,3 +313,99 @@ async def update_appointment(identifier: UUID, data: AppointmentUpdate, user=Dep
 @app.put('/admin/trial-duration')
 async def trial_duration(days: int = Query(ge=1, le=90), user=Depends(administrator)):
     return await supabase('PATCH', '/rest/v1/system_settings?id=eq.true', user['token'], {'trial_days': days})
+
+
+async def owner(user=Depends(administrator)):
+    if user['role'] != 'owner':
+        raise HTTPException(403, 'Se requiere el rol principal.')
+    return user
+
+
+@app.get('/admin/users')
+async def managed_users(user=Depends(owner)):
+    return await supabase('POST', '/rest/v1/rpc/list_managed_users', user['token'], {})
+
+
+@app.patch('/admin/users/{identifier}/access')
+async def user_access(identifier: UUID, data: UserAccess, user=Depends(owner)):
+    await supabase('POST', '/rest/v1/rpc/set_user_access', user['token'],
+                   {'p_user_id': str(identifier), 'p_disabled': data.disabled})
+    return {'updated': True}
+
+
+@app.get('/admin/invitations')
+async def invitations(user=Depends(owner)):
+    return await supabase('GET', '/rest/v1/user_invitations?select=*&order=created_at.desc', user['token'])
+
+
+async def deliver_invitation(row, token):
+    # Auth issues and delivers the one-use proof. OWL never creates/stores that token.
+    redirect = (settings().public_client_origin or settings().frontend_origin) + '/invitacion?id=' + row['id']
+    try:
+        await supabase('POST', '/auth/v1/otp?' + urlencode({'redirect_to': redirect}),
+                       body={'email': row['email'], 'create_user': True, 'data': {'owl_invitation': True}})
+    except HTTPException:
+        await supabase('POST', '/rest/v1/rpc/manage_invitation', token,
+                       {'p_id': row['id'], 'p_action': 'failed'})
+        return {'id': row['id'], 'delivery_status': 'failed'}
+    await supabase('POST', '/rest/v1/rpc/manage_invitation', token,
+                   {'p_id': row['id'], 'p_action': 'sent'})
+    return {'id': row['id'], 'delivery_status': 'sent'}
+
+
+@app.post('/admin/invitations', status_code=201)
+async def invite(data: InvitationCreate, user=Depends(owner)):
+    limiter.check(('invitation', user['id']), 10, 3600)
+    row = await supabase('POST', '/rest/v1/rpc/manage_invitation', user['token'],
+                         {'p_email': str(data.email).lower(), 'p_role': data.role})
+    return await deliver_invitation(row, user['token'])
+
+
+@app.post('/admin/invitations/{identifier}/resend')
+async def resend_invitation(identifier: UUID, user=Depends(owner)):
+    limiter.check(('invitation-resend', str(identifier)), 1, 60)
+    row = await supabase('POST', '/rest/v1/rpc/manage_invitation', user['token'],
+                         {'p_id': str(identifier), 'p_action': 'resend'})
+    return await deliver_invitation(row, user['token'])
+
+
+@app.post('/admin/invitations/{identifier}/revoke')
+async def revoke_invitation(identifier: UUID, user=Depends(owner)):
+    await supabase('POST', '/rest/v1/rpc/manage_invitation', user['token'],
+                   {'p_id': str(identifier), 'p_action': 'revoke'})
+    return {'revoked': True}
+
+
+@app.post('/auth/invitation-session')
+async def invitation_session(data: InvitationSession, response: Response):
+    limiter.check(('invitation-proof', str(data.invitation_id)), 5, 600)
+    result = await supabase('POST', '/auth/v1/verify', body={'token_hash': data.token_hash, 'type': 'email'})
+    try:
+        await supabase('POST', '/rest/v1/rpc/my_invitation', result['access_token'], {'p_id': str(data.invitation_id)})
+    except HTTPException:
+        await supabase('POST', '/auth/v1/logout?scope=local', result['access_token'], {})
+        raise HTTPException(403, 'La invitación no corresponde a esta cuenta.') from None
+    set_session(response, result)
+    return {'verified': True}
+
+
+@app.post('/auth/link-session')
+async def link_session(data: LinkSession, response: Response, request: Request):
+    limiter.check(('login-link', request.client.host if request.client else ''), 5, 600)
+    result = await supabase('POST', '/auth/v1/verify', body={'token_hash': data.token_hash, 'type': 'email'})
+    if not await supabase('POST', '/rest/v1/rpc/user_is_active', result['access_token'], {}):
+        raise HTTPException(403, 'Acceso desactivado.')
+    set_session(response, result)
+    return {'verified': True}
+
+
+@app.get('/invitations/{identifier}')
+async def my_invitation(identifier: UUID, user=Depends(current_user)):
+    return await supabase('POST', '/rest/v1/rpc/my_invitation', user['token'], {'p_id': str(identifier)})
+
+
+@app.post('/invitations/{identifier}/accept')
+async def accept_invitation(identifier: UUID, data: InvitationAccept, user=Depends(current_user)):
+    destination = await supabase('POST', '/rest/v1/rpc/accept_invitation', user['token'],
+                                  {'p_id': str(identifier), 'p_terms': data.accepted_terms})
+    return {'redirect_to': settings().admin_origin + '/admin' if destination == 'admin' else (settings().public_client_origin or settings().frontend_origin) + '/portal'}

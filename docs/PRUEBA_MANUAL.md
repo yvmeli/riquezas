@@ -17,6 +17,8 @@ Usar `localhost` de forma consistente en el navegador; las cookies y los orígen
 
 La cuenta del ensayo ya está verificada y conserva trial, onboarding y movimientos sintéticos en Supabase real. La contraseña temporal automatizada no se guardó. Para elegir una contraseña propia:
 
+También puedes entrar sin contraseña: pulsa **Entrar con código por correo**, solicita el OTP e introdúcelo directamente en OWL. No se crea una cuenta nueva por solicitar un código. Esta alternativa está comprobada realmente por HTTPS/ngrok.
+
 1. Abrir la autenticación del cliente en Brave y pulsar **Olvidé mi contraseña**.
 2. Introducir el correo autorizado y solicitar el código.
 3. Introducir el código directamente en OWL. No compartirlo por chat ni guardarlo en archivos.
@@ -31,6 +33,6 @@ Usar la navegación del portal para abrir Resumen, Cuentas, Movimientos, Presupu
 
 La cuenta sintética comienza con RD$1,000.00; el ensayo añadió RD$3,000.10 de ingresos y RD$200.05 de gastos. Antes de añadir nuevos datos, el neto es RD$2,800.05 y el balance registrado RD$3,800.05. Los filtros de fecha y moneda afectan a los resultados.
 
-El portal administrativo exige un rol explícito del servidor. La cuenta de cliente no tiene ese rol y recibe acceso denegado. No se ha creado ni promovido automáticamente un administrador; la validación administrativa completa sigue pendiente.
+El portal administrativo exige un rol explícito del servidor. Tras la nueva solicitud del titular, su identidad existente recibió `owner` mediante SQL privilegiado y auditoría. Puede iniciar sesión en el origen administrativo con la misma identidad. No existe promoción pública ni se concedió a otros clientes ese rol. El panel/API y el listado de usuarios se comprobaron con Supabase real; la invitación a una identidad nueva todavía requiere el destinatario de prueba autorizado.
 
 Los servidores se mantienen ejecutándose durante la evaluación. La navegación se comprobó con emulación de escritorio/móvil; queda pendiente la evaluación personal en Brave y dispositivos físicos.

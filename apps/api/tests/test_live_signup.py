@@ -43,7 +43,7 @@ def test_resume_rotates_only_real_verified_session_and_logs_nothing(monkeypatch,
     })
     assert asyncio.run(live.main()) == 0
     assert [call.args[1] for call in provider.await_args_list] == [
-        '/auth/v1/verify', '/auth/v1/user', '/auth/v1/logout',
+        '/auth/v1/verify', '/auth/v1/user', '/auth/v1/logout?scope=local',
     ]
     assert provider.await_args_list[1].args[2] == 'synthetic-user-token'
     captured = capsys.readouterr()

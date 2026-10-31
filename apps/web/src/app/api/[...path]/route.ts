@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 const ALLOWED =
-  /^(health|auth\/(register|verify|login|logout|refresh|resend|recover|password)|appointments|me|onboarding|accounts|transactions(?:\/[a-f0-9-]+(?:\/category)?)?|dashboard|budgets|goals(?:\/[a-f0-9-]+\/contributions)?|export|data|integrations|admin\/(overview|trials\/extend|trial-duration|appointments\/[a-f0-9-]+))$/;
+  /^(health|auth\/(register|verify|login|code|invitation-session|link-session|logout|refresh|resend|recover|password)|appointments|me|onboarding|accounts|transactions(?:\/[a-f0-9-]+(?:\/category)?)?|dashboard|budgets|goals(?:\/[a-f0-9-]+\/contributions)?|export|data|integrations|invitations\/[a-f0-9-]+(?:\/accept)?|admin\/(overview|users(?:\/[a-f0-9-]+\/access)?|invitations(?:\/[a-f0-9-]+\/(resend|revoke))?|trials\/extend|trial-duration|appointments\/[a-f0-9-]+))$/;
 
 async function proxy(
   request: NextRequest,
@@ -20,7 +20,25 @@ async function proxy(
     const allowedOrigin =
       process.env.PUBLIC_ORIGIN ||
       (isAdmin ? "http://localhost:3001" : "http://localhost:3000");
-    if (request.headers.get("origin") !== allowedOrigin)
+    const trustedOrigins = new Set([
+      allowedOrigin,
+      ...(!isAdmin
+        ? (process.env.ADDITIONAL_PUBLIC_ORIGINS || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => {
+              try {
+                const u = new URL(s);
+                return (
+                  u.protocol === "https:" && u.origin === s && !s.includes("*")
+                );
+              } catch {
+                return false;
+              }
+            })
+        : []),
+    ]);
+    if (!trustedOrigins.has(request.headers.get("origin") || ""))
       return Response.json(
         { detail: "Origen no autorizado." },
         { status: 403 },
@@ -61,7 +79,13 @@ async function proxy(
       "Cache-Control": "no-store",
     });
     for (const cookie of upstream.headers.getSetCookie())
-      headers.append("Set-Cookie", cookie);
+      headers.append(
+        "Set-Cookie",
+        (request.headers.get("origin") || "").startsWith("https://") &&
+          !/;\s*secure\b/i.test(cookie)
+          ? cookie + "; Secure"
+          : cookie,
+      );
     if (upstream.headers.has("content-disposition"))
       headers.set(
         "Content-Disposition",

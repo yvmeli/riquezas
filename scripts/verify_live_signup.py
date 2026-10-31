@@ -29,7 +29,7 @@ async def main():
         return 1
     await supabase('PUT', '/auth/v1/user', result['access_token'],
                    {'password': data['password']})
-    await supabase('POST', '/auth/v1/logout', result['access_token'], {})
+    await supabase('POST', '/auth/v1/logout?scope=local', result['access_token'], {})
     return 0
 
 

@@ -4,6 +4,8 @@ MVP de finanzas personales para República Dominicana. Desarrollo exclusivo en `
 
 La aplicación tiene backend y esquema persistente Supabase; **no trae datos simulados en el producto**. Supabase está conectado y las dos migraciones están aplicadas. Se comprobaron correo OTP real, login, trial, onboarding, movimientos, dashboard y persistencia tras volver a iniciar sesión. Gmail y PDF bancario siguen pendientes. El MVP integral sigue en desarrollo: [progreso](docs/PROGRESO.md). Para probarlo desde el navegador, consultar [acceso local](docs/PRUEBA_MANUAL.md).
 
+El login ahora ofrece código por correo y contraseña. El propietario dispone de gestión de usuarios e invitaciones; la migración adicional `202610310001` está aplicada y conserva RLS. El login OTP y la navegación móvil se comprobaron realmente por HTTPS: [ngrok](docs/NGROK.md), [invitaciones y límites comprobados](docs/INVITACIONES.md).
+
 ## Requisitos
 
 Node.js 22+ y Python 3.12+. Supabase local (CLI + Docker) o proyecto de desarrollo autorizado, con las migraciones aplicadas y email OTP habilitado. Las pruebas unitarias/PostgreSQL embebido no requieren nube.

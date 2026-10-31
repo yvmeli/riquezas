@@ -14,7 +14,7 @@ PRIVATE_TABLES = (
     'system_settings', 'profiles', 'admin_roles', 'trials', 'audit_events',
     'appointments', 'accounts', 'transactions', 'budgets', 'goals',
     'contributions', 'categories', 'bank_connections', 'imports',
-    'import_rows', 'sync_runs',
+    'import_rows', 'sync_runs', 'user_access', 'user_invitations',
 )
 
 

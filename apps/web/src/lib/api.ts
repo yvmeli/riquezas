@@ -24,6 +24,11 @@ export async function api<T = unknown>(
   if (response.status === 401 && retry && !path.startsWith("auth/")) {
     refreshing ||= api("auth/refresh", "POST", {}, false)
       .then(() => {})
+      .catch((error) => {
+        if (error instanceof ApiError && [400, 401, 403].includes(error.status))
+          throw new ApiError(401, "Tu sesión venció. Inicia sesión de nuevo.");
+        throw error;
+      })
       .finally(() => {
         refreshing = null;
       });

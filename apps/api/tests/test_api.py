@@ -32,6 +32,14 @@ def test_health_does_not_claim_integrations_work(client):
     assert data['bank_parsers_verified'] is False
 
 
+def test_trial_listing_orders_by_existing_primary_key(provider):
+    import asyncio
+    from owl.main import all_rows
+    provider.return_value = []
+    assert asyncio.run(all_rows('trials', 'synthetic-token')) == []
+    assert 'order=user_id' in provider.call_args.args[1]
+
+
 @pytest.mark.parametrize('origin',[None,'https://evil.example','null'])
 def test_mutations_require_trusted_origin(client,provider,origin):
     response=client.post('/auth/login',headers={'Origin':origin} if origin else {},json={})
@@ -69,7 +77,7 @@ def test_verification_ends_temporary_session_and_requires_login(client,provider)
     response=client.post('/auth/verify',headers=ORIGIN,json={'email':'synthetic@example.com','code':'123456'})
     assert response.status_code==200
     assert provider.call_args_list[0].kwargs['body']['type']=='signup'
-    assert provider.call_args_list[1].args[1]=='/auth/v1/logout'
+    assert provider.call_args_list[1].args[1]=='/auth/v1/logout?scope=local'
     assert all('Max-Age=0' in c for c in response.headers.get_list('set-cookie'))
 
 
@@ -154,11 +162,55 @@ def test_onboarding_keeps_same_profile_and_records_choice(client,provider):
 def test_trial_is_not_reset_when_profile_is_loaded(client,provider):
     client.cookies.set('owl_access','token')
     trial={'user_id':USER['id'],'expires_at':'2026-11-01T00:00:00Z'}
-    provider.side_effect=[USER,[{'id':USER['id']}],[{'user_id':str(uuid4())},trial]]
+    provider.side_effect=[USER,True,[{'id':USER['id']}],[{'user_id':str(uuid4())},trial]]
     response=client.get('/me')
     assert response.status_code==200
     assert response.json()['trial']==trial
-    assert all(call.args[0]=='GET' for call in provider.call_args_list)
+    assert all(call.args[0]=='GET' or call.args[1].endswith('/rpc/user_is_active') for call in provider.call_args_list)
+
+
+def test_passwordless_request_never_auto_creates_user(client,provider):
+    response=client.post('/auth/code',headers=ORIGIN,json={'email':'synthetic@example.com'})
+    assert response.status_code==202
+    assert provider.call_args.kwargs['body']['create_user'] is False
+    assert client.post('/auth/code',headers=ORIGIN,json={'email':'synthetic@example.com'}).status_code==429
+
+
+def test_passwordless_verification_sets_session_without_logout(client,provider):
+    provider.return_value={'access_token':'synthetic-access','refresh_token':'synthetic-refresh'}
+    response=client.post('/auth/verify',headers=ORIGIN,json={'email':'synthetic@example.com','code':'11112222','kind':'email'})
+    assert response.status_code==200
+    assert 'HttpOnly' in response.headers['set-cookie']
+    assert provider.await_count==1
+    assert 'synthetic-access' not in response.text
+
+
+def test_disabled_user_cannot_open_profile(client,provider):
+    client.cookies.set('owl_access','token')
+    provider.side_effect=[USER,False]
+    assert client.get('/me').status_code==403
+
+
+def test_only_owner_can_invite(client,provider):
+    client.cookies.set('owl_access','token')
+    provider.side_effect=[USER,[{'role':'operator'}]]
+    assert client.post('/admin/invitations',headers=ORIGIN,json={'email':'recipient@example.com','role':'owner'}).status_code==403
+
+
+def test_logout_revokes_only_the_current_session(client,provider):
+    client.cookies.set('owl_access','token')
+    assert client.post('/auth/logout',headers=ORIGIN,json={}).status_code==200
+    assert provider.call_args.args[1]=='/auth/v1/logout?scope=local'
+
+
+def test_invitation_email_failure_keeps_audited_pending_record(client,provider):
+    client.cookies.set('owl_access','token')
+    row={'id':str(uuid4()),'email':'recipient@example.com','role':'client'}
+    provider.side_effect=[USER,[{'role':'owner'}],row,HTTPException(502,'sanitized'),row]
+    result=client.post('/admin/invitations',headers=ORIGIN,json={'email':row['email'],'role':'client'})
+    assert result.status_code==201
+    assert result.json()['delivery_status']=='failed'
+    assert provider.call_args.args[3]['p_action']=='failed'
 
 
 def test_delete_requires_explicit_phrase(client,provider):

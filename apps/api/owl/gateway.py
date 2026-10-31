@@ -21,6 +21,8 @@ async def supabase(method: str, path: str, token: str | None = None, body=None):
         if path.startswith("/auth/"):
             detail = "Solicitud de autenticación rechazada o código vencido."
         code = response.status_code if response.status_code in (400, 401, 403, 409, 422, 429) else 502
+        if path == '/auth/v1/user' and method == 'GET' and code in (401, 403):
+            code = 401
         raise HTTPException(code, detail)
     # Preserve PostgreSQL NUMERIC JSON values before any binary float conversion.
     return response.json(parse_float=str) if response.content else None

@@ -282,6 +282,79 @@ test("register, OTP, login and onboarding with synthetic provider", async ({
   expect(state.profile.methods).toEqual(["manual"]);
 });
 
+test("passwordless UI requests a code and verifies an email session with synthetic provider", async ({
+  page,
+}) => {
+  await syntheticApi(page);
+  const requests: Record<string, unknown>[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      /\/api\/auth\/(code|verify)$/.test(request.url())
+    )
+      requests.push(request.postDataJSON());
+  });
+  await page.goto("/auth");
+  await page
+    .getByRole("button", { name: "Entrar con código por correo", exact: true })
+    .click();
+  await page.getByLabel("Correo electrónico").fill("synthetic@example.com");
+  await page
+    .getByRole("button", { name: "Enviar código", exact: true })
+    .click();
+  await page.getByLabel("Código de verificación").fill("11112222");
+  await page
+    .getByRole("button", { name: "Verificar código", exact: true })
+    .click();
+  await expect(page).toHaveURL("http://localhost:3000/portal");
+  expect(requests).toEqual([
+    { email: "synthetic@example.com" },
+    { email: "synthetic@example.com", code: "11112222", kind: "email" },
+  ]);
+});
+
+test("invitation link removes proof from address and requires explicit acceptance with synthetic provider", async ({
+  page,
+}) => {
+  await syntheticApi(page);
+  let accepted = false,
+    proofVerified = false;
+  await page.route("**/api/auth/invitation-session", async (route) => {
+    proofVerified = true;
+    await route.fulfill({ json: { verified: true } });
+  });
+  await page.route("**/api/invitations/**", async (route) => {
+    if (route.request().method() === "POST") {
+      accepted = route.request().postDataJSON().accepted_terms === true;
+      await route.fulfill({
+        json: { redirect_to: "http://localhost:3000/portal" },
+      });
+    } else
+      await route.fulfill({
+        json: {
+          role: "client",
+          expires_at: new Date(Date.now() + 86400000).toISOString(),
+          accepted_at: null,
+          revoked_at: null,
+        },
+      });
+  });
+  await page.goto(
+    "/invitacion?id=00000000-0000-4000-8000-000000000099#token_hash=" +
+      "a".repeat(64),
+  );
+  await expect(
+    page.getByRole("button", { name: "Aceptar invitación" }),
+  ).toBeVisible();
+  expect(new URL(page.url()).hash).toBe("");
+  expect(proofVerified).toBe(true);
+  expect(accepted).toBe(false);
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Aceptar invitación" }).click();
+  await expect(page).toHaveURL("http://localhost:3000/portal");
+  expect(accepted).toBe(true);
+});
+
 test("manual expense, transfer and exact amount are sent to API", async ({
   page,
 }) => {

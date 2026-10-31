@@ -42,7 +42,7 @@ async function createMovement(overrides = {}) {
 before(async () => {
   await db.exec(`create role anon nologin; create role authenticated nologin;
  create schema auth;
- create table auth.users(id uuid primary key,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
+ create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
  grant usage on schema auth,public to anon,authenticated;
  grant execute on function auth.uid() to anon,authenticated;
@@ -94,6 +94,119 @@ before(async () => {
 });
 after(async () => {
   await db.close();
+});
+
+test("invitation roles bind to verified recipient and can only be accepted once", async () => {
+  await db.exec("reset role");
+  await db.query(
+    "update auth.users set email=case id when $1 then 'alice@example.test' when $2 then 'bob@example.test' else 'admin@example.test' end",
+    [alice, bob],
+  );
+  await db.query(
+    "update public.admin_roles set role='owner' where user_id=$1",
+    [admin],
+  );
+  await login(alice);
+  await assert.rejects(
+    db.query("select public.manage_invitation('bob@example.test','owner')"),
+  );
+  await login(admin);
+  const invitation = (
+    await db.query(
+      "select * from public.manage_invitation('bob@example.test','support')",
+    )
+  ).rows[0];
+  await login(alice);
+  await assert.rejects(
+    db.query("select public.accept_invitation($1,true)", [invitation.id]),
+  );
+  await assert.rejects(
+    db.query(
+      "insert into public.admin_roles(user_id,role) values($1,'owner')",
+      [alice],
+    ),
+  );
+  await login(bob);
+  assert.equal(
+    (
+      await db.query(
+        "select public.accept_invitation($1,true) as destination",
+        [invitation.id],
+      )
+    ).rows[0].destination,
+    "admin",
+  );
+  await assert.rejects(
+    db.query("select public.accept_invitation($1,true)", [invitation.id]),
+  );
+  assert.equal(
+    (
+      await db.query("select role from public.admin_roles where user_id=$1", [
+        bob,
+      ])
+    ).rows[0].role,
+    "support",
+  );
+});
+
+test("revoked and expired invitations cannot grant roles", async () => {
+  await login(admin);
+  const revoked = (
+    await db.query(
+      "select * from public.manage_invitation('alice@example.test','owner')",
+    )
+  ).rows[0];
+  await db.query(
+    "select public.manage_invitation(p_id:=$1,p_action:='revoke')",
+    [revoked.id],
+  );
+  await login(alice);
+  await assert.rejects(
+    db.query("select public.accept_invitation($1,true)", [revoked.id]),
+  );
+  await login(admin);
+  const expired = (
+    await db.query(
+      "select * from public.manage_invitation('bob@example.test','owner')",
+    )
+  ).rows[0];
+  await db.exec("reset role");
+  await db.query(
+    "update public.user_invitations set created_at=now()-interval '8 days',expires_at=now()-interval '1 day' where id=$1",
+    [expired.id],
+  );
+  await login(bob);
+  await assert.rejects(
+    db.query("select public.accept_invitation($1,true)", [expired.id]),
+  );
+});
+
+test("disabled users lose direct private reads and writes without broadening ownership", async () => {
+  await login(admin);
+  await assert.rejects(
+    db.query("select public.set_user_access($1,true)", [admin]),
+  );
+  await db.query("select public.set_user_access($1,true)", [bob]);
+  await login(bob);
+  assert.equal(await count("accounts"), 0);
+  assert.equal(
+    (await db.query("select public.admin_has(array['support']) as permitted"))
+      .rows[0].permitted,
+    false,
+  );
+  await assert.rejects(
+    db.query(
+      "insert into public.accounts(user_id,name,institution,kind,currency) values($1,'Blocked','other','debit','DOP')",
+      [bob],
+    ),
+  );
+  await login(admin);
+  await db.query("select public.set_user_access($1,false)", [bob]);
+  await db.exec("reset role");
+  await db.query(
+    "update public.admin_roles set role='operator' where user_id=$1",
+    [admin],
+  );
 });
 
 test("migrations preserve existing unrelated table and function permissions", async () => {

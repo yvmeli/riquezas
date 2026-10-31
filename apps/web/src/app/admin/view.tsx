@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Brand } from "@/components/brand";
 import { ActionForm, Field, Select } from "@/components/form";
 import { api, ApiError } from "@/lib/api";
+import Users from "./users";
 type Appointment = {
   id: string;
   name: string;
@@ -107,6 +108,7 @@ export default function Admin() {
               </article>
             </div>
             <div className="admin-grid">
+              {data.role === "owner" && <Users />}
               <section className="panel">
                 <h2>Solicitudes de orientación</h2>
                 {data.appointments.length ? (
