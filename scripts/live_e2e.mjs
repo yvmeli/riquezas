@@ -18,11 +18,6 @@ const runId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().
 const directory = path.join(root, ".local", `live-${runId}`);
 await mkdir(directory, { recursive: true });
 const password = randomBytes(32).toString("base64url") + "aA1!";
-await writeFile(
-  path.join(directory, "account.env"),
-  `OWL_TEST_EMAIL=${email}\nOWL_TEST_PASSWORD=${password}\n`,
-  { mode: 0o600 },
-);
 const report = {
   run_id: runId,
   provider: "real_supabase",
@@ -55,6 +50,21 @@ try {
     readiness.project_ref !== "lwhpwbyfyrxojpbcuyex"
   )
     throw new Error("preflight");
+  const emailConfiguration = JSON.parse(
+    await readFile(path.join(root, ".local/auth-config-check.json"), "utf8"),
+  );
+  if (
+    emailConfiguration.project_ref !== readiness.project_ref ||
+    emailConfiguration.smtp_enabled !== true ||
+    emailConfiguration.signup_template_contains_token !== true ||
+    emailConfiguration.confirm_email_required !== true
+  )
+    throw new Error("smtp_setup_required");
+  await writeFile(
+    path.join(directory, "account.env"),
+    `OWL_TEST_EMAIL=${email}\nOWL_TEST_PASSWORD=${password}\n`,
+    { mode: 0o600 },
+  );
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     baseURL: "http://localhost:3000",
@@ -189,7 +199,7 @@ try {
     "expense_persisted",
     "dashboard_exact_totals",
   );
-  await wait(page.getByText('RD$2,800.05',{exact:true}).first());
+  await wait(page.getByText("RD$2,800.05", { exact: true }).first());
   await page.screenshot({
     path: path.join(directory, "dashboard.png"),
     fullPage: true,
@@ -247,8 +257,12 @@ try {
   });
   if (logout.status() !== 200) throw new Error("final_logout");
   await save("customer_flow_passed_admin_and_second_user_pending");
-} catch {
+} catch (error) {
   report.failed_at = report.phase;
+  report.error_code =
+    error instanceof Error && error.message === "smtp_setup_required"
+      ? "smtp_setup_required"
+      : "ui_or_provider_error";
   await save("blocked_or_failed_review_local_configuration");
   process.exitCode = 1;
 } finally {

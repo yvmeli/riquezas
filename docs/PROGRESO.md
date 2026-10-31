@@ -76,3 +76,31 @@ Se retomó desde `8f17a4c`, con `mvp` limpio. `main` y `sketch` permanecen intac
 No se aplicó ninguna migración remota ni se creó un usuario real. No hay OTP enviado/verificado, trial remoto activado, persistencia remota comprobada ni administrador designado. Falta la vinculación autorizada al proyecto y el correo para la prueba. No se requiere la contraseña de la cuenta Supabase; una contraseña PostgreSQL solo se pedirá si resulta necesaria para una vía de migración directa.
 
 Google Cloud se inspeccionará después del primer recorrido Supabase, conforme al orden solicitado. No se habilitó facturación ni se modificaron permisos externos o consentimientos Gmail. Los archivos de contexto siguen sin incluir muestras Qik/Popular: los PDF disponibles son materiales comerciales.
+
+## Estado recuperado y comprobado — 31 de octubre de 2026
+
+Se reanudó tras la pausa explícita del usuario, conservando el cambio local de `.gitignore` que excluye `.playwright-mcp/` y todos los archivos privados de configuración. La rama sigue siendo `mvp`.
+
+El último diagnóstico documentado anteriormente quedó superado antes de la pausa: Playwright MCP sí accedió al proyecto autorizado, la clave pública se guardó en el archivo local ignorado y las dos migraciones se aplicaron en transacción. En esta reanudación se comprobó de nuevo el historial real (`202610280001`, `202610290001`), las 17 tablas públicas y RLS habilitado en todas. No se volvieron a ejecutar las migraciones.
+
+Los servidores estaban sin responder y se iniciaron en loopback (3000, 8000, 3001). Se conservó la configuración existente. No se creó una nueva instancia ni un recurso pago.
+
+### Prueba real completada: solicitud de orientación
+
+Se ejecutó la interfaz móvil contra el backend y Supabase reales, sin mocks. La API devolvió 201 y el identificador se cotejó por SQL con la fila persistida. Estado `requested`, modalidad `video` y `scheduled_at` vacío: no hubo reserva automática. Auth continuó con cero usuarios, por lo que la cita no creó una identidad financiera. Evidencia y captura privadas en `.local`; ningún dato de contacto se copió a Git.
+
+### Auth configurado y requisito de SMTP
+
+Se verificaron email habilitado y confirmación obligatoria. Se guardaron contraseña mínima de 12 caracteres y OTP con caducidad de 600 segundos. Se preservaron los 8 dígitos del proveedor. El Site URL es localhost:3000 y se añadieron por separado los redirects exactos localhost:3000/auth y localhost:3001/auth. Una entrada concatenada producida al rellenar el formulario se retiró y se verificó la lista final de dos URLs correctas.
+
+La consola Free bloquea la edición de la plantilla hasta configurar SMTP propio o contratar Pro. La plantilla predeterminada contiene un enlace, no el OTP requerido por OWL. No se cambió de plan, no se desactivó la verificación y todavía no se envió ningún código. El usuario indicó el correo de prueba, que se conserva fuera de los archivos públicos. Se solicitó únicamente SMTP de envío y se preparó `.local/smtp.env` sin credenciales.
+
+El runner real se reforzó para detenerse antes del registro si SMTP/plantilla no están comprobados; la comprobación produjo `smtp_setup_required`, sin crear credenciales locales ni usuarios remotos. Continúan pendientes registro/OTP, trial remoto, movimientos, dashboard, recuperación, segundo usuario y administrador verificado. Esto no se presenta como un flujo completo aprobado.
+
+Se añadió `scripts/live_appointment.mjs`, ejecutado realmente, y se mantuvieron en curso los servidores. Google Cloud y los extractores siguen con las limitaciones ya documentadas.
+
+### Regresión y acceso anónimo
+
+La regresión terminó sin fallos: 74 pruebas Python, 19 PostgreSQL embebido, 4 de importes y 24 Playwright aprobadas; una prueba Playwright se omite deliberadamente porque exige Supabase sin configurar y ahora está conectado. Las pruebas con fixtures no certifican OTP real ni autorización entre dos usuarios remotos.
+
+Se amplió y ejecutó `scripts/check_supabase.py` contra el proveedor real: las 16 tablas privadas rechazaron SELECT anónimo con HTTP 401; el catálogo público de instituciones respondió 200. Se consultó con `limit=0` y sin bearer de usuario ni clave privilegiada, sin obtener datos privados ni alterar registros. La primera consulta del catálogo utilizó una columna inexistente; se corrigió a `code`, según la migración, y la comprobación completa posterior fue satisfactoria. El diagnóstico devuelve error ante permisos/esquema inesperados y no imprime cuerpos de respuesta.

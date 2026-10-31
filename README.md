@@ -2,7 +2,7 @@
 
 MVP de finanzas personales para República Dominicana. Desarrollo exclusivo en `mvp`.
 
-La aplicación tiene backend y esquema persistente Supabase; **no trae datos simulados en el producto**. El flujo manual está implementado y probado por capas. Supabase debe configurarse para operar con cuentas reales. Gmail y PDF bancario todavía no están habilitados. El MVP integral sigue en desarrollo: [progreso](docs/PROGRESO.md).
+La aplicación tiene backend y esquema persistente Supabase; **no trae datos simulados en el producto**. Supabase está conectado y las dos migraciones están aplicadas. La solicitud de cita ya se comprobó con persistencia real. El registro por código OTP está pendiente de configurar SMTP y su plantilla; Gmail y PDF bancario siguen pendientes. El MVP integral sigue en desarrollo: [progreso](docs/PROGRESO.md).
 
 ## Requisitos
 
@@ -101,6 +101,8 @@ Con Supabase configurado, OTP real habilitado y los tres servidores iniciados:
 node scripts/live_e2e.mjs --email <correo-de-prueba-autorizado>
 ```
 
-El runner no usa mocks. La contraseña generada solo se guarda en `.local/live-*/account.env`. Se detiene en `waiting_real_signup_otp` hasta que se introduzca el código recibido en `signup-otp.txt` del mismo directorio, sin acceder a bandejas. Comprueba trial, onboarding, registros, cálculos, logout/relogin y persistencia; la validación administrativa y con segundo usuario queda separada.
+El runner no usa mocks. Comprueba `.local/auth-config-check.json`, registrado tras inspeccionar SMTP y la plantilla en la consola: no inicia un registro si todavía se envía un enlace de confirmación. Una vez verificado el envío por código, guarda la contraseña generada solo en `.local/live-*/account.env` y se detiene en `waiting_real_signup_otp` hasta recibir el código en `signup-otp.txt`, sin acceder a bandejas. Comprueba trial, onboarding, registros, cálculos, logout/relogin y persistencia; la validación administrativa y con segundo usuario queda separada.
 
-El recorrido real **todavía no se ha ejecutado**: falta acceso autorizado para obtener la clave pública, revisar/aplicar migraciones y confirmar Auth. No debe confundirse con los tests de fixtures sintéticos.
+El recorrido completo con OTP **todavía no se ha ejecutado**: en el plan Free del proyecto, personalizar la plantilla requiere SMTP propio o Pro. La configuración local segura de envío está preparada en `.local/smtp.env`; sus credenciales no se comparten por chat ni se publican. No se habilitó facturación.
+
+La prueba independiente `node scripts/live_appointment.mjs --email <correo-autorizado>` utiliza la interfaz y el proveedor reales y guarda evidencia solo en `.local`. Crea una solicitud sintética pendiente, sin reservar el horario ni crear un usuario financiero; ejecutar solo cuando se quiera crear una nueva solicitud, respetando la cuota diaria.

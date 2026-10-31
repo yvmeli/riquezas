@@ -12,6 +12,7 @@ coverage/
 playwright-report/
 test-results/
 .local/
+.playwright-mcp/
 *.log
 *.egg-info/
 *.tsbuildinfo

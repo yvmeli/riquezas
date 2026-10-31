@@ -10,6 +10,12 @@ import httpx
 from owl.config import settings
 
 ROOT = Path(__file__).resolve().parents[1]
+PRIVATE_TABLES = (
+    'system_settings', 'profiles', 'admin_roles', 'trials', 'audit_events',
+    'appointments', 'accounts', 'transactions', 'budgets', 'goals',
+    'contributions', 'categories', 'bank_connections', 'imports',
+    'import_rows', 'sync_runs',
+)
 
 
 async def main():
@@ -31,8 +37,28 @@ async def main():
                 report['checks']['signup_disabled'] = data.get('disable_signup')
                 report['checks']['email_autoconfirm'] = data.get('mailer_autoconfirm')
             if cfg.supabase_anon_key:
-                response = await client.get(cfg.supabase_url + '/rest/v1/profiles?select=id&limit=0', headers=headers)
-                report['checks']['profiles_anonymous_http_status'] = response.status_code
+                # No user bearer or privileged key. limit=0 avoids fetching records
+                # even if grants are accidentally broadened. Never log response bodies.
+                statuses = {}
+                for table in PRIVATE_TABLES:
+                    response = await client.get(
+                        cfg.supabase_url + f'/rest/v1/{table}?select=*&limit=0',
+                        headers=headers,
+                    )
+                    statuses[table] = response.status_code
+                report['checks']['profiles_anonymous_http_status'] = statuses['profiles']
+                report['checks']['private_tables_anonymous_http_status'] = statuses
+                report['checks']['private_tables_anonymous_denied'] = all(
+                    status in (401, 403) for status in statuses.values()
+                )
+                response = await client.get(
+                    cfg.supabase_url + '/rest/v1/institutions?select=code&limit=0',
+                    headers=headers,
+                )
+                report['checks']['public_institutions_http_status'] = response.status_code
+                if (response.status_code != 200 or
+                        not report['checks']['private_tables_anonymous_denied']):
+                    report['blocker'] = 'unexpected_anonymous_permissions_or_schema'
     except httpx.RequestError:
         report['network_reachable'] = False
         report['blocker'] = 'network_access'
@@ -42,7 +68,7 @@ async def main():
     path.parent.mkdir(exist_ok=True)
     path.write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps(report, indent=2))
-    return 1 if report.get('blocker') == 'network_access' else 0
+    return 1 if report.get('blocker') else 0
 
 
 if __name__ == '__main__':
