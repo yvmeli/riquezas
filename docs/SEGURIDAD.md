@@ -12,6 +12,7 @@
 - CSP, bloqueo de frames, nosniff, política de referrer, sin analítica ni dependencias de fuentes remotas.
 - Respuestas API `no-store`; PWA con allowlist de recursos públicos, sin caché de datos financieros, tokens, páginas privadas o RSC.
 - Exportación y eliminación de datos financieros propias, incluidas tras vencimiento de trial. No hay credenciales bancarias.
+- El runner real recibe OTP por stdin sin eco, con plazo y longitud limitados. Contraseña sintética, códigos y tokens permanecen en memoria; los informes privados no los incluyen. La reanudación de un registro solo cambia la contraseña con la sesión emitida tras verificar realmente el código y comprobar usuario/proyecto.
 
 ## Tratamiento y retención
 

@@ -193,6 +193,56 @@ for (const width of widths) {
   });
 }
 
+for (const width of [390, 1440]) {
+  test(`all customer sections navigate at ${width}px with synthetic provider`, async ({
+    page,
+  }) => {
+    await syntheticApi(page);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/portal");
+    for (const section of [
+      "Resumen",
+      "Cuentas",
+      "Movimientos",
+      "Presupuestos",
+      "Metas",
+      "Configuración",
+      "Conexiones",
+    ]) {
+      await page.getByRole("button", { name: section, exact: true }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        section === "Resumen" ? "Tu panorama financiero." : section,
+      );
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await expect(
+      page.getByText("Pendiente de habilitación", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Pendiente de validación", { exact: true }),
+    ).toBeVisible();
+  });
+}
+
+test("unauthenticated real customer route redirects to normal login", async ({
+  page,
+}) => {
+  await page.goto("/portal");
+  await expect(page).toHaveURL("http://localhost:3000/auth");
+  await page.getByRole("button", { name: "Olvidé mi contraseña" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Recupera tu acceso." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Enviar código" }),
+  ).toBeVisible();
+  expect((await page.request.get("/api/me")).status()).toBe(401);
+});
+
 test("register, OTP, login and onboarding with synthetic provider", async ({
   page,
 }) => {

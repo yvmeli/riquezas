@@ -1,10 +1,12 @@
 // Explicit, opt-in real-provider test. No routes are mocked and no OTP is invented.
-// Private credentials/artifacts stay under .local; never enable traces or HAR here.
+// Credentials/OTP stay in memory; reports stay under .local. No traces or HAR.
 import { chromium } from "@playwright/test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { readOtp } from "./live_otp.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const email = process.argv[process.argv.indexOf("--email") + 1];
@@ -60,11 +62,7 @@ try {
     emailConfiguration.confirm_email_required !== true
   )
     throw new Error("smtp_setup_required");
-  await writeFile(
-    path.join(directory, "account.env"),
-    `OWL_TEST_EMAIL=${email}\nOWL_TEST_PASSWORD=${password}\n`,
-    { mode: 0o600 },
-  );
+  const resume = process.argv.includes("--resume-signup-stdin");
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     baseURL: "http://localhost:3000",
@@ -82,47 +80,55 @@ try {
     return response.json();
   };
   if (!(await data("health")).supabase_configured) throw new Error("preflight");
-  await page.goto("/");
-  await wait(page.getByRole("heading", { level: 1 }));
-  report.passed.push("landing");
-  await page
-    .getByRole("link", { name: "Encuentra tu punto de partida" })
-    .click();
-  await page.getByRole("link", { name: /Directamente/ }).click();
-  await page.getByLabel("Nombres", { exact: true }).fill("OWL");
-  await page.getByLabel("Apellidos").fill("Prueba funcional");
-  await page.getByLabel("Correo electrónico").fill(email);
-  await page.getByLabel("Contraseña", { exact: true }).fill(password);
-  await page.getByRole("checkbox").check();
-  await save("registering");
-  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
-  await wait(page.getByRole("heading", { name: "Verifica tu correo." }));
-  report.passed.push("registration_accepted");
-  report.otp_input = path.relative(
-    root,
-    path.join(directory, "signup-otp.txt"),
-  );
-  await save("waiting_real_signup_otp");
-  const deadline = Date.now() + 9 * 60 * 1000;
-  let otp = "";
-  while (Date.now() < deadline) {
-    try {
-      const value = (
-        await readFile(path.join(directory, "signup-otp.txt"), "utf8")
-      ).trim();
-      if (/^\d{6,10}$/.test(value)) {
-        otp = value;
-        break;
-      }
-    } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  if (resume) {
+    const otpInput = readOtp(process.stdin);
+    console.log("OWL prueba real: waiting_stdin_signup_otp");
+    const code = await otpInput;
+    const result = spawnSync(
+      path.join(root, ".venv/Scripts/python.exe"),
+      [path.join(root, "scripts/verify_live_signup.py")],
+      {
+        input: JSON.stringify({ email, code: code.trim(), password }),
+        encoding: "utf8",
+        windowsHide: true,
+      },
+    );
+    if (result.status !== 0) throw new Error("real_otp_verification_failed");
+    report.passed.push(
+      "real_otp_verified",
+      "verified_session_password_updated",
+    );
+    await page.goto("/auth");
+    await wait(page.getByRole("heading", { name: "Qué bueno verte." }));
+    await page.getByLabel("Correo electrónico").fill(email);
+  } else {
+    await page.goto("/");
+    await wait(page.getByRole("heading", { level: 1 }));
+    report.passed.push("landing");
+    await page
+      .getByRole("link", { name: "Encuentra tu punto de partida" })
+      .click();
+    await page.getByRole("link", { name: /Directamente/ }).click();
+    await page.getByLabel("Nombres", { exact: true }).fill("OWL");
+    await page.getByLabel("Apellidos").fill("Prueba funcional");
+    await page.getByLabel("Correo electrónico").fill(email);
+    await page.getByLabel("Contraseña", { exact: true }).fill(password);
+    await page.getByRole("checkbox").check();
+    await save("registering");
+    await page
+      .getByRole("button", { name: "Crear cuenta", exact: true })
+      .click();
+    await wait(page.getByRole("heading", { name: "Verifica tu correo." }));
+    report.passed.push("registration_accepted");
+    const otpInput = readOtp(process.stdin);
+    await save("waiting_real_signup_otp");
+    const otp = await otpInput;
+    await save("verifying_real_otp");
+    await page.getByLabel("Código de verificación").fill(otp);
+    await page.getByRole("button", { name: "Verificar código" }).click();
+    await wait(page.getByRole("heading", { name: "Qué bueno verte." }));
+    report.passed.push("real_otp_verified");
   }
-  if (!otp) throw new Error("otp_timeout");
-  await save("verifying_real_otp");
-  await page.getByLabel("Código de verificación").fill(otp);
-  await page.getByRole("button", { name: "Verificar código" }).click();
-  await wait(page.getByRole("heading", { name: "Qué bueno verte." }));
-  report.passed.push("real_otp_verified");
   await save("logging_in");
   await page.getByLabel("Contraseña", { exact: true }).fill(password);
   await page
